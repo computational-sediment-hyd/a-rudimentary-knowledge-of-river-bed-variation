@@ -1,0 +1,896 @@
+
+<html>
+  <head>
+    
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://code.jquery.com/ui/1.10.4/themes/smoothness/jquery-ui.css">
+<style>div.hololayout {
+  display: flex;
+  align-items: center;
+  margin: 0;
+}
+
+div.holoframe {
+  width: 75%;
+}
+
+div.holowell {
+  display: flex;
+  align-items: center;
+}
+
+form.holoform {
+  background-color: #fafafa;
+  border-radius: 5px;
+  overflow: hidden;
+  padding-left: 0.8em;
+  padding-right: 0.8em;
+  padding-top: 0.4em;
+  padding-bottom: 0.4em;
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.05);
+  margin-bottom: 20px;
+  border: 1px solid #e3e3e3;
+}
+
+div.holowidgets {
+  padding-right: 0;
+  width: 25%;
+}
+
+div.holoslider {
+  min-height: 0 !important;
+  height: 0.8em;
+  width: 100%;
+}
+
+div.holoformgroup {
+  padding-top: 0.5em;
+  margin-bottom: 0.5em;
+}
+
+div.hologroup {
+  padding-left: 0;
+  padding-right: 0.8em;
+  width: 100%;
+}
+
+.holoselect {
+  width: 92%;
+  margin-left: 0;
+  margin-right: 0;
+}
+
+.holotext {
+  padding-left:  0.5em;
+  padding-right: 0;
+  width: 100%;
+}
+
+.holowidgets .ui-resizable-se {
+  visibility: hidden
+}
+
+.holoframe > .ui-resizable-se {
+  visibility: hidden
+}
+
+.holowidgets .ui-resizable-s {
+  visibility: hidden
+}
+
+
+/* CSS rules for noUISlider based slider used by JupyterLab extension  */
+
+.noUi-handle {
+  width: 20px !important;
+  height: 20px !important;
+  left: -5px !important;
+  top: -5px !important;
+}
+
+.noUi-handle:before, .noUi-handle:after {
+  visibility: hidden;
+  height: 0px;
+}
+
+.noUi-target {
+  margin-left: 0.5em;
+  margin-right: 0.5em;
+}
+
+div.bk-hbox {
+    display: flex;
+    justify-content: center;
+}
+
+div.bk-hbox div.bk-plot {
+    padding: 8px;
+}
+
+div.bk-hbox div.bk-data-table {
+    padding: 20px;
+}
+</style>
+    
+<script src="https://cdn.pydata.org/bokeh/release/bokeh-1.4.0.min.js" type="text/javascript"></script>
+<script src="https://cdn.pydata.org/bokeh/release/bokeh-widgets-1.4.0.min.js" type="text/javascript"></script>
+<script src="https://cdn.pydata.org/bokeh/release/bokeh-tables-1.4.0.min.js" type="text/javascript"></script>
+<script src="https://cdn.pydata.org/bokeh/release/bokeh-gl-1.4.0.min.js" type="text/javascript"></script>
+<script src="https://code.jquery.com/jquery-2.1.4.min.js" type="text/javascript"></script>
+<script src="https://code.jquery.com/ui/1.10.4/jquery-ui.min.js" type="text/javascript"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.1.20/require.min.js" type="text/javascript"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.3/underscore-min.js" type="text/javascript"></script>
+<script type="text/javascript">function HoloViewsWidget() {
+}
+
+HoloViewsWidget.prototype.init_slider = function(init_val){
+  if(this.load_json) {
+    this.from_json()
+  } else {
+    this.update_cache();
+  }
+}
+
+HoloViewsWidget.prototype.populate_cache = function(idx){
+  this.cache[idx].innerHTML = this.frames[idx];
+  if (this.embed) {
+    delete this.frames[idx];
+  }
+}
+
+HoloViewsWidget.prototype.process_error = function(msg){
+}
+
+HoloViewsWidget.prototype.from_json = function() {
+  var data_url = this.json_path + this.id + '.json';
+  $.getJSON(data_url, $.proxy(function(json_data) {
+    this.frames = json_data;
+    this.update_cache();
+    this.update(0);
+  }, this));
+}
+
+HoloViewsWidget.prototype.dynamic_update = function(current){
+  if (current === undefined) {
+    return
+  }
+  this.current = current;
+  if (this.comm) {
+    var msg = {comm_id: this.id+'_client', content: current}
+    this.comm.send(msg);
+  }
+}
+
+HoloViewsWidget.prototype.update_cache = function(force){
+  var frame_len = Object.keys(this.frames).length;
+  for (var i=0; i<frame_len; i++) {
+    if(!this.load_json || this.dynamic)  {
+      var frame = Object.keys(this.frames)[i];
+    } else {
+      var frame = i;
+    }
+    if(!(frame in this.cache) || force) {
+      if ((frame in this.cache) && force) { this.cache[frame].remove() }
+      var div = document.createElement("div");
+      var parent = document.getElementById("_anim_img"+this.id);
+      div.style.display = "none";
+      parent.appendChild(div)
+      this.cache[frame] = div;
+      var cache_id = "_anim_img"+this.id+"_"+frame;
+      this.populate_cache(frame);
+    }
+  }
+}
+
+HoloViewsWidget.prototype.update = function(current){
+  if(current in this.cache) {
+    for (var index in this.cache) {
+      this.cache[index].style.display = "none";
+    }
+    this.cache[current].style.display = "";
+    this.wait = false;
+  }
+}
+
+HoloViewsWidget.prototype.init_comms = function() {
+  var that = this
+  HoloViews.comm_manager.register_target(this.plot_id, this.id, function (msg) { that.msg_handler(msg) })
+  if (!this.cached || this.dynamic) {
+    function ack_callback(msg) {
+      var msg = msg.metadata;
+      var comm_id = msg.comm_id;
+      var comm_status = HoloViews.comm_status[comm_id];
+      if (that.queue.length > 0) {
+        that.time = Date.now();
+        that.dynamic_update(that.queue[that.queue.length-1]);
+        that.queue = [];
+      } else {
+        that.wait = false;
+      }
+      if ((msg.msg_type == "Ready") && msg.content) {
+        console.log("Python callback returned following output:", msg.content);
+      } else if (msg.msg_type == "Error") {
+        console.log("Python failed with the following traceback:", msg.traceback)
+      }
+    }
+    var comm = HoloViews.comm_manager.get_client_comm(this.plot_id, this.id+'_client', ack_callback);
+    return comm
+  }
+}
+
+HoloViewsWidget.prototype.msg_handler = function(msg) {
+  var metadata = msg.metadata;
+  if ((metadata.msg_type == "Ready")) {
+    if (metadata.content) {
+      console.log("Python callback returned following output:", metadata.content);
+    }
+	return;
+  } else if (metadata.msg_type == "Error") {
+    console.log("Python failed with the following traceback:", metadata.traceback)
+    return
+  }
+  this.process_msg(msg)
+}
+
+HoloViewsWidget.prototype.process_msg = function(msg) {
+}
+
+function SelectionWidget(frames, id, slider_ids, keyMap, dim_vals, notFound, load_json, mode, cached, json_path, dynamic, plot_id){
+  this.frames = frames;
+  this.id = id;
+  this.plot_id = plot_id;
+  this.slider_ids = slider_ids;
+  this.keyMap = keyMap
+  this.current_frame = 0;
+  this.current_vals = dim_vals;
+  this.load_json = load_json;
+  this.mode = mode;
+  this.notFound = notFound;
+  this.cached = cached;
+  this.dynamic = dynamic;
+  this.cache = {};
+  this.json_path = json_path;
+  this.init_slider(this.current_vals[0]);
+  this.queue = [];
+  this.wait = false;
+  if (!this.cached || this.dynamic) {
+    this.comm = this.init_comms();
+  }
+}
+
+SelectionWidget.prototype = new HoloViewsWidget;
+
+
+SelectionWidget.prototype.get_key = function(current_vals) {
+  var key = "(";
+  for (var i=0; i<this.slider_ids.length; i++)
+  {
+    var val = this.current_vals[i];
+    if (!(typeof val === 'string')) {
+      if (val % 1 === 0) { val = val.toFixed(1); }
+      else { val = val.toFixed(10); val = val.slice(0, val.length-1);}
+    }
+    key += "'" + val + "'";
+    if(i != this.slider_ids.length-1) { key += ', ';}
+    else if(this.slider_ids.length == 1) { key += ',';}
+  }
+  key += ")";
+  return this.keyMap[key];
+}
+
+SelectionWidget.prototype.set_frame = function(dim_val, dim_idx){
+  this.current_vals[dim_idx] = dim_val;
+  var key = this.current_vals;
+  if (!this.dynamic) {
+    key = this.get_key(key)
+  }
+  if (this.dynamic || !this.cached) {
+    if ((this.time !== undefined) && ((this.wait) && ((this.time + 10000) > Date.now()))) {
+      this.queue.push(key);
+      return
+    }
+    this.queue = [];
+    this.time = Date.now();
+    this.current_frame = key;
+    this.wait = true;
+    this.dynamic_update(key)
+  } else if (key !== undefined) {
+    this.update(key)
+  }
+}
+
+
+/* Define the ScrubberWidget class */
+function ScrubberWidget(frames, num_frames, id, interval, load_json, mode, cached, json_path, dynamic, plot_id){
+  this.slider_id = "_anim_slider" + id;
+  this.loop_select_id = "_anim_loop_select" + id;
+  this.id = id;
+  this.plot_id = plot_id;
+  this.interval = interval;
+  this.current_frame = 0;
+  this.direction = 0;
+  this.dynamic = dynamic;
+  this.timer = null;
+  this.load_json = load_json;
+  this.mode = mode;
+  this.cached = cached;
+  this.frames = frames;
+  this.cache = {};
+  this.length = num_frames;
+  this.json_path = json_path;
+  document.getElementById(this.slider_id).max = this.length - 1;
+  this.init_slider(0);
+  this.wait = false;
+  this.queue = [];
+  if (!this.cached || this.dynamic) {
+    this.comm = this.init_comms()
+  }
+}
+
+ScrubberWidget.prototype = new HoloViewsWidget;
+
+ScrubberWidget.prototype.set_frame = function(frame){
+  this.current_frame = frame;
+  var widget = document.getElementById(this.slider_id);
+  if (widget === null) {
+    this.pause_animation();
+    return
+  }
+  widget.value = this.current_frame;
+  if (this.dynamic || !this.cached) {
+    if ((this.time !== undefined) && ((this.wait) && ((this.time + 10000) > Date.now()))) {
+      this.queue.push(frame);
+      return
+    }
+    this.queue = [];
+    this.time = Date.now();
+    this.wait = true;
+    this.dynamic_update(frame)
+  } else {
+    this.update(frame)
+  }
+}
+
+ScrubberWidget.prototype.get_loop_state = function(){
+  var button_group = document[this.loop_select_id].state;
+  for (var i = 0; i < button_group.length; i++) {
+    var button = button_group[i];
+    if (button.checked) {
+      return button.value;
+    }
+  }
+  return undefined;
+}
+
+
+ScrubberWidget.prototype.next_frame = function() {
+  this.set_frame(Math.min(this.length - 1, this.current_frame + 1));
+}
+
+ScrubberWidget.prototype.previous_frame = function() {
+  this.set_frame(Math.max(0, this.current_frame - 1));
+}
+
+ScrubberWidget.prototype.first_frame = function() {
+  this.set_frame(0);
+}
+
+ScrubberWidget.prototype.last_frame = function() {
+  this.set_frame(this.length - 1);
+}
+
+ScrubberWidget.prototype.slower = function() {
+  this.interval /= 0.7;
+  if(this.direction > 0){this.play_animation();}
+  else if(this.direction < 0){this.reverse_animation();}
+}
+
+ScrubberWidget.prototype.faster = function() {
+  this.interval *= 0.7;
+  if(this.direction > 0){this.play_animation();}
+  else if(this.direction < 0){this.reverse_animation();}
+}
+
+ScrubberWidget.prototype.anim_step_forward = function() {
+  if(this.current_frame < this.length - 1){
+    this.next_frame();
+  }else{
+    var loop_state = this.get_loop_state();
+    if(loop_state == "loop"){
+      this.first_frame();
+    }else if(loop_state == "reflect"){
+      this.last_frame();
+      this.reverse_animation();
+    }else{
+      this.pause_animation();
+      this.last_frame();
+    }
+  }
+}
+
+ScrubberWidget.prototype.anim_step_reverse = function() {
+  if(this.current_frame > 0){
+    this.previous_frame();
+  } else {
+    var loop_state = this.get_loop_state();
+    if(loop_state == "loop"){
+      this.last_frame();
+    }else if(loop_state == "reflect"){
+      this.first_frame();
+      this.play_animation();
+    }else{
+      this.pause_animation();
+      this.first_frame();
+    }
+  }
+}
+
+ScrubberWidget.prototype.pause_animation = function() {
+  this.direction = 0;
+  if (this.timer){
+    clearInterval(this.timer);
+    this.timer = null;
+  }
+}
+
+ScrubberWidget.prototype.play_animation = function() {
+  this.pause_animation();
+  this.direction = 1;
+  var t = this;
+  if (!this.timer) this.timer = setInterval(function(){t.anim_step_forward();}, this.interval);
+}
+
+ScrubberWidget.prototype.reverse_animation = function() {
+  this.pause_animation();
+  this.direction = -1;
+  var t = this;
+  if (!this.timer) this.timer = setInterval(function(){t.anim_step_reverse();}, this.interval);
+}
+
+function extend(destination, source) {
+  for (var k in source) {
+    if (source.hasOwnProperty(k)) {
+      destination[k] = source[k];
+    }
+  }
+  return destination;
+}
+
+function update_widget(widget, values) {
+  if (widget.hasClass("ui-slider")) {
+    widget.slider('option', {
+      min: 0,
+      max: values.length-1,
+      dim_vals: values,
+      value: 0,
+      dim_labels: values
+    })
+    widget.slider('option', 'slide').call(widget, event, {value: 0})
+  } else {
+    widget.empty();
+    for (var i=0; i<values.length; i++){
+      widget.append($("<option>", {
+        value: i,
+        text: values[i]
+      }))
+    };
+    widget.data('values', values);
+    widget.data('value', 0);
+    widget.trigger("change");
+  };
+}
+
+function init_slider(id, plot_id, dim, values, next_vals, labels, dynamic, step, value, next_dim,
+                     dim_idx, delay, jQueryUI_CDN, UNDERSCORE_CDN) {
+  // Slider JS Block START
+  function loadcssfile(filename){
+    var fileref=document.createElement("link")
+    fileref.setAttribute("rel", "stylesheet")
+    fileref.setAttribute("type", "text/css")
+    fileref.setAttribute("href", filename)
+    document.getElementsByTagName("head")[0].appendChild(fileref)
+  }
+  loadcssfile("https://code.jquery.com/ui/1.10.4/themes/smoothness/jquery-ui.css");
+  /* Check if jQuery and jQueryUI have been loaded
+     otherwise load with require.js */
+  var jQuery = window.jQuery,
+    // check for old versions of jQuery
+    oldjQuery = jQuery && !!jQuery.fn.jquery.match(/^1\.[0-4](\.|$)/),
+    jquery_path = '',
+    paths = {},
+    noConflict;
+  var jQueryUI = jQuery.ui;
+  // check for jQuery
+  if (!jQuery || oldjQuery) {
+    // load if it's not available or doesn't meet min standards
+    paths.jQuery = jQuery;
+    noConflict = !!oldjQuery;
+  } else {
+    // register the current jQuery
+    define('jquery', [], function() { return jQuery; });
+  }
+  if (!jQueryUI) {
+    paths.jQueryUI = jQueryUI_CDN.slice(null, -3);
+  } else {
+    define('jQueryUI', [], function() { return jQuery.ui; });
+  }
+  paths.underscore = UNDERSCORE_CDN.slice(null, -3);
+  var jquery_require = {
+    paths: paths,
+    shim: {
+      "jQueryUI": {
+        exports:"$",
+        deps: ['jquery']
+      },
+      "underscore": {
+        exports: '_'
+      }
+    }
+  }
+  require.config(jquery_require);
+  require(["jQueryUI", "underscore"], function(jUI, _){
+    if (noConflict) $.noConflict(true);
+    var vals = values;
+    if (dynamic && vals.constructor === Array) {
+      var default_value = parseFloat(value);
+      var min = parseFloat(vals[0]);
+      var max = parseFloat(vals[vals.length-1]);
+      var wstep = step;
+      var wlabels = [default_value];
+      var init_label = default_value;
+    } else {
+      var min = 0;
+      if (dynamic) {
+        var max = Object.keys(vals).length - 1;
+        var init_label = labels[value];
+        var default_value = values[value];
+      } else {
+        var max = vals.length - 1;
+        var init_label = labels[value];
+        var default_value = value;
+      }
+      var wstep = 1;
+      var wlabels = labels;
+    }
+    function adjustFontSize(text) {
+      var width_ratio = (text.parent().width()/8)/text.val().length;
+      var size = Math.min(0.9, Math.max(0.6, width_ratio))+'em';
+      text.css('font-size', size);
+    }
+    var slider = $('#_anim_widget'+id+'_'+dim);
+    slider.slider({
+      animate: "fast",
+      min: min,
+      max: max,
+      step: wstep,
+      value: default_value,
+      dim_vals: vals,
+      dim_labels: wlabels,
+      next_vals: next_vals,
+      slide: function(event, ui) {
+        var vals = slider.slider("option", "dim_vals");
+        var next_vals = slider.slider("option", "next_vals");
+        var dlabels = slider.slider("option", "dim_labels");
+        if (dynamic) {
+          var dim_val = ui.value;
+          if (vals.constructor === Array) {
+            var label = ui.value;
+          } else {
+            var label = dlabels[ui.value];
+          }
+        } else {
+          var dim_val = vals[ui.value];
+          var label = dlabels[ui.value];
+        }
+        var text = $('#textInput'+id+'_'+dim);
+        text.val(label);
+        adjustFontSize(text);
+        HoloViews.index[plot_id].set_frame(dim_val, dim_idx);
+        if (Object.keys(next_vals).length > 0) {
+          var new_vals = next_vals[dim_val];
+          var next_widget = $('#_anim_widget'+id+'_'+next_dim);
+          update_widget(next_widget, new_vals);
+        }
+      }
+    });
+    slider.keypress(function(event) {
+      if (event.which == 80 || event.which == 112) {
+        var start = slider.slider("option", "value");
+        var stop =  slider.slider("option", "max");
+        for (var i=start; i<=stop; i++) {
+          var delay = i*delay;
+          $.proxy(function doSetTimeout(i) { setTimeout($.proxy(function() {
+            var val = {value:i};
+            slider.slider('value',i);
+            slider.slider("option", "slide")(null, val);
+          }, slider), delay);}, slider)(i);
+        }
+      }
+      if (event.which == 82 || event.which == 114) {
+        var start = slider.slider("option", "value");
+        var stop =  slider.slider("option", "min");
+        var count = 0;
+        for (var i=start; i>=stop; i--) {
+          var delay = count*delay;
+          count = count + 1;
+          $.proxy(function doSetTimeout(i) { setTimeout($.proxy(function() {
+            var val = {value:i};
+            slider.slider('value',i);
+            slider.slider("option", "slide")(null, val);
+          }, slider), delay);}, slider)(i);
+        }
+      }
+    });
+    var textInput = $('#textInput'+id+'_'+dim)
+    textInput.val(init_label);
+    adjustFontSize(textInput);
+  });
+}
+
+function init_dropdown(id, plot_id, dim, vals, value, next_vals, labels, next_dim, dim_idx, dynamic) {
+  var widget = $("#_anim_widget"+id+'_'+dim);
+  widget.data('values', vals)
+  for (var i=0; i<vals.length; i++){
+    if (dynamic) {
+      var val = vals[i];
+    } else {
+      var val = i;
+    }
+    widget.append($("<option>", {
+      value: val,
+      text: labels[i]
+    }));
+  };
+  widget.data("next_vals", next_vals);
+  widget.val(value);
+  widget.on('change', function(event, ui) {
+    if (dynamic) {
+      var dim_val = parseInt(this.value);
+    } else {
+      var dim_val = $.data(this, 'values')[this.value];
+    }
+    var next_vals = $.data(this, "next_vals");
+    if (Object.keys(next_vals).length > 0) {
+      var new_vals = next_vals[dim_val];
+      var next_widget = $('#_anim_widget'+id+'_'+next_dim);
+      update_widget(next_widget, new_vals);
+    }
+    var widgets = HoloViews.index[plot_id]
+    if (widgets) {
+      widgets.set_frame(dim_val, dim_idx);
+    }
+  });
+}
+
+
+if (window.HoloViews === undefined) {
+  window.HoloViews = {}
+  window.PyViz = window.HoloViews
+} else if (window.PyViz === undefined) {
+  window.PyViz = window.HoloViews
+}
+
+
+var _namespace = {
+  init_slider: init_slider,
+  init_dropdown: init_dropdown,
+  comms: {},
+  comm_status: {},
+  index: {},
+  plot_index: {},
+  kernels: {},
+  receivers: {}
+}
+
+for (var k in _namespace) {
+  if (!(k in window.HoloViews)) {
+    window.HoloViews[k] = _namespace[k];
+  }
+}
+
+// Define Bokeh specific subclasses
+function BokehSelectionWidget() {
+  SelectionWidget.apply(this, arguments);
+}
+
+function BokehScrubberWidget() {
+  ScrubberWidget.apply(this, arguments);
+}
+
+// Let them inherit from the baseclasses
+BokehSelectionWidget.prototype = Object.create(SelectionWidget.prototype);
+BokehScrubberWidget.prototype = Object.create(ScrubberWidget.prototype);
+
+// Define methods to override on widgets
+var BokehMethods = {
+  update_cache : function(){
+    for (var index in this.frames) {
+      this.frames[index] = JSON.parse(this.frames[index]);
+    }
+  },
+  update : function(current){
+    if (current === undefined) {
+      return;
+    }
+    var data = this.frames[current];
+    if (data !== undefined) {
+      if (data.root in HoloViews.plot_index) {
+        var doc = HoloViews.plot_index[data.root].model.document;
+      } else {
+        var doc = Bokeh.index[data.root].model.document;
+      }
+      doc.apply_json_patch(data.content);
+    }
+  },
+  init_comms: function() {
+    if (Bokeh.protocol !== undefined) {
+      this.receiver = new Bokeh.protocol.Receiver()
+    } else {
+      this.receiver = null;
+    }
+    return HoloViewsWidget.prototype.init_comms.call(this);
+  },
+  process_msg : function(msg) {
+    if (this.plot_id in HoloViews.plot_index) {
+      var doc = HoloViews.plot_index[this.plot_id].model.document;
+    } else {
+      var doc = Bokeh.index[this.plot_id].model.document;
+    }
+    if (this.receiver === null) { return }
+    var receiver = this.receiver;
+    if (msg.buffers.length > 0) {
+      receiver.consume(msg.buffers[0].buffer)
+    } else {
+      receiver.consume(msg.content.data)
+    }
+    const comm_msg = receiver.message;
+    if ((comm_msg != null) && (doc != null)) {
+      doc.apply_json_patch(comm_msg.content, comm_msg.buffers)
+    }
+  }
+}
+
+// Extend Bokeh widgets with backend specific methods
+extend(BokehSelectionWidget.prototype, BokehMethods);
+extend(BokehScrubberWidget.prototype, BokehMethods);
+
+window.HoloViews.BokehSelectionWidget = BokehSelectionWidget
+window.HoloViews.BokehScrubberWidget = BokehScrubberWidget
+</script>
+<script type="text/javascript">
+    function JupyterCommManager() {
+    }
+
+    JupyterCommManager.prototype.register_target = function(plot_id, comm_id, msg_handler) {
+      if (window.comm_manager || ((window.Jupyter !== undefined) && (Jupyter.notebook.kernel != null))) {
+        var comm_manager = window.comm_manager || Jupyter.notebook.kernel.comm_manager;
+        comm_manager.register_target(comm_id, function(comm) {
+          comm.on_msg(msg_handler);
+        });
+      } else if ((plot_id in window.PyViz.kernels) && (window.PyViz.kernels[plot_id])) {
+        window.PyViz.kernels[plot_id].registerCommTarget(comm_id, function(comm) {
+          comm.onMsg = msg_handler;
+        });
+      }
+    }
+
+    JupyterCommManager.prototype.get_client_comm = function(plot_id, comm_id, msg_handler) {
+      if (comm_id in window.PyViz.comms) {
+        return window.PyViz.comms[comm_id];
+      } else if (window.comm_manager || ((window.Jupyter !== undefined) && (Jupyter.notebook.kernel != null))) {
+        var comm_manager = window.comm_manager || Jupyter.notebook.kernel.comm_manager;
+        var comm = comm_manager.new_comm(comm_id, {}, {}, {}, comm_id);
+        if (msg_handler) {
+          comm.on_msg(msg_handler);
+        }
+      } else if ((plot_id in window.PyViz.kernels) && (window.PyViz.kernels[plot_id])) {
+        var comm = window.PyViz.kernels[plot_id].connectToComm(comm_id);
+        comm.open();
+        if (msg_handler) {
+          comm.onMsg = msg_handler;
+        }
+      }
+
+      window.PyViz.comms[comm_id] = comm;
+      return comm;
+    }
+
+    window.PyViz.comm_manager = new JupyterCommManager();
+    </script>
+  </head>
+  <body>
+    <div class="hololayout row row-fluid">
+  <div class="holoframe" id="display_areae17bb91983e74169ae9b7eeda5d8a0cb">
+    <div id="_anim_imge17bb91983e74169ae9b7eeda5d8a0cb">
+      
+      <div id='6659' style='display: table; margin: 0 auto;'>
+
+
+
+
+
+  <div class="bk-root" id="620b3dcc-9f89-441e-839a-fb9137a7c282" data-root-id="6659"></div>
+</div>
+      
+    </div>
+  </div>
+  <div class="holowidgets" id="widget_areae17bb91983e74169ae9b7eeda5d8a0cb">
+    <form class="holoform well" id="forme17bb91983e74169ae9b7eeda5d8a0cb">
+      
+      
+      <div class="form-group control-group holoformgroup" style=''>
+        <label for="textInpute17bb91983e74169ae9b7eeda5d8a0cb_t">
+          <strong>t:</strong>
+        </label>
+        <div class="holowell">
+          <div class="hologroup">
+            <input type="text" class="holotext form-control input-small"
+                   id="textInpute17bb91983e74169ae9b7eeda5d8a0cb_t" value="" readonly>
+          </div>
+          <div class="holoslider"
+               id="_anim_widgete17bb91983e74169ae9b7eeda5d8a0cb_t"></div>
+        </div>
+      </div>
+      
+        
+        </form>
+    </div>
+</div>
+<script type="text/javascript">/* Instantiate the BokehSelectionWidget class. */
+/* The IDs given should match those used in the template above. */
+var widget_ids = new Array(1);
+
+
+widget_ids[0] = "_anim_widgete17bb91983e74169ae9b7eeda5d8a0cb_t";
+
+
+function create_widget() {
+  var frame_data = {"0": "{\"content\":{\"events\":[{\"attr\":\"end\",\"kind\":\"ModelChanged\",\"model\":{\"id\":\"6654\",\"type\":\"Range1d\"},\"new\":31.4},{\"attr\":\"reset_end\",\"kind\":\"ModelChanged\",\"model\":{\"id\":\"6654\",\"type\":\"Range1d\"},\"new\":31.4},{\"cols\":[\"Variable\",\"x\",\"value\"],\"column_source\":{\"id\":\"6694\",\"type\":\"ColumnDataSource\"},\"kind\":\"ColumnDataChanged\",\"new\":{\"Variable\":[\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\"],\"value\":{\"__ndarray__\":\"ZmZmZmZmP0BmZmZmZuY+QGZmZmZmZj5AZmZmZmbmPUBmZmZmZmY9QGZmZmZm5jxAZmZmZmZmPEBmZmZmZuY7QGZmZmZmZjtAZmZmZmbmOkBmZmZmZmY6QGZmZmZm5jlAZmZmZmZmOUBmZmZmZuY4QGZmZmZmZjhAZmZmZmbmN0BmZmZmZmY3QGZmZmZm5jZAZmZmZmZmNkBmZmZmZuY1QGZmZmZmZjVAZmZmZmbmNEBmZmZmZmY0QGZmZmZm5jNAZmZmZmZmM0BmZmZmZuYyQGdmZmZmZjJAamZmZmbmMUB1ZmZmZmYxQKBmZmZm5jBAQmdmZmZmMEBH08zMzMwvQDjlzMzMzC5A2yjNzMzMLUDGJ87MzMwsQJ3o0czMzCtAJg7gzMzMKkBEYBXNzMwpQJZZ3s3MzChAvNnT0MzMJ0Bq+/rbzMwmQBBiBAbNzCVANnt1pM3MJEAaE6P5z8wjQCuHT8TYzCJA4SDi5PnMIUC0mjqdds0gQJoep2mVnh9AMsoWlSasHUBYsqobc9wbQAmyzFNccxpA+/x6sGbKGUBNrXe3GK8ZQLOKAI1ZSBlAbyc4zPPhGEAN4i1kjXsYQM4BUv0mFRhAXEtllsCuF0DXrmgvWkgXQEamWsjz4RZA1ZU5YY17FkD0xgP6JhUWQBdot5LArhVA14xSK1pIFUBULtPD8+EUQBEsN1yNexRASE189CYVFEDaQqCMwK4TQOOpoCRaSBNAJw97vPPhEkBm8yxUjXsSQL3Qs+smFRJARyENg8CuEUAmZzYaWkgRQB02LbHz4RBAAT/vR417EEBEXXreJhUQQH5NmemAXQ9AafzIFbSQDkBvUYFB58MNQN3MwGwa9wxACx6Hl00qDECcZNXBgF0LQPN6ruuzkApA6koXFefDCUD3LRc+GvcIQPtZuGZNKghA51sIj4BdB0DgoRi3s5AGQDsW/97mwwVAGs3WBhr3BEBSxsAuTSoEQLfF5FaAXQNAiUNyf7OQAkB8d6Go5sMBQGGAtNIZ9wBAEKv4/UwqAEDntY9VALv+P/ItFLNmIf0/TntuFc2H+z86lmV9M+75Pw==\",\"dtype\":\"float64\",\"shape\":[101]},\"x\":[0,100,200,300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,1600,1700,1800,1900,2000,2100,2200,2300,2400,2500,2600,2700,2800,2900,3000,3100,3200,3300,3400,3500,3600,3700,3800,3900,4000,4100,4200,4300,4400,4500,4600,4700,4800,4900,5000,5100,5200,5300,5400,5500,5600,5700,5800,5900,6000,6100,6200,6300,6400,6500,6600,6700,6800,6900,7000,7100,7200,7300,7400,7500,7600,7700,7800,7900,8000,8100,8200,8300,8400,8500,8600,8700,8800,8900,9000,9100,9200,9300,9400,9500,9600,9700,9800,9900,10000]}},{\"cols\":[\"Variable\",\"x\",\"value\"],\"column_source\":{\"id\":\"6710\",\"type\":\"ColumnDataSource\"},\"kind\":\"ColumnDataChanged\",\"new\":{\"Variable\":[\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\"],\"value\":{\"__ndarray__\":\"ZmZmZmZmPkBmZmZmZuY9QGZmZmZmZj1AZmZmZmbmPEBmZmZmZmY8QGZmZmZm5jtAZmZmZmZmO0BmZmZmZuY6QGZmZmZmZjpAZmZmZmbmOUBmZmZmZmY5QGZmZmZm5jhAZmZmZmZmOEBmZmZmZuY3QGZmZmZmZjdAZmZmZmbmNkBmZmZmZmY2QGZmZmZm5jVAZmZmZmZmNUBmZmZmZuY0QGZmZmZmZjRAZmZmZmbmM0BmZmZmZmYzQGZmZmZm5jJAZmZmZmZmMkBmZmZmZuYxQGZmZmZmZjFAZmZmZmbmMEBmZmZmZmYwQMzMzMzMzC9AzMzMzMzMLkDOzMzMzMwtQNLMzMzMzCxA5MzMzMzMK0AlzczMzMwqQBzOzMzMzClAvtHMzMzMKEBx38zMzMwnQBETzczMzCZAptXNzMzMJUAOs9DMzMwkQFx/28zMzCNAJDIEzczMIkDrk53NzMwhQGN338/MzCBATq28sJmZH0Cn2WrwmZkdQM77YduamRtAIrWQDZ6ZGUAte4oap5kXQFYmsu+zmRVAlfbdvK+ZE0CXGl1GNTMTQM5ss8rMzBJA4V1qZmZmEkBt9/////8RQICYmZmZmRFA9jEzMzMzEUB7y8zMzMwQQP9kZmZmZhBABf3/////D0AMMDMzMzMPQBRjZmZmZg5AHJaZmZmZDUAnyczMzMwMQDX8/////wtASC8zMzMzC0BfYmZmZmYKQH6VmZmZmQlApsjMzMzMCEDZ+/////8HQBkvMzMzMwdAaWJmZmZmBkDLlZmZmZkFQETJzMzMzARA1/z/////A0CIMDMzMzMDQF1kZmZmZgJAWpiZmZmZAUCGzMzMzMwAQOgAAAAAAABADmtmZmZm/j/Y1MzMzMz8P0A/MzMzM/s/WqqZmZmZ+T8/FgAAAAD4PweDZmZmZvY/zvDMzMzM9D+zXzMzMzPzP9jPmZmZmfE/YUEAAAAA8D/raM3MzMzsP4RSmpmZmek/6z9nZmZm5j+GMTQzMzPjP8UnAQAAAOA/QEacmZmZ2T8uSDYzMzPTP9KsoJmZmck/bMipmZmZuT8BAADoEPhjPQ==\",\"dtype\":\"float64\",\"shape\":[101]},\"x\":[0,100,200,300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,1600,1700,1800,1900,2000,2100,2200,2300,2400,2500,2600,2700,2800,2900,3000,3100,3200,3300,3400,3500,3600,3700,3800,3900,4000,4100,4200,4300,4400,4500,4600,4700,4800,4900,5000,5100,5200,5300,5400,5500,5600,5700,5800,5900,6000,6100,6200,6300,6400,6500,6600,6700,6800,6900,7000,7100,7200,7300,7400,7500,7600,7700,7800,7900,8000,8100,8200,8300,8400,8500,8600,8700,8800,8900,9000,9100,9200,9300,9400,9500,9600,9700,9800,9900,10000]}},{\"cols\":[\"Variable\",\"x\",\"value\"],\"column_source\":{\"id\":\"6797\",\"type\":\"ColumnDataSource\"},\"kind\":\"ColumnDataChanged\",\"new\":{\"Variable\":[\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\"],\"value\":{\"__ndarray__\":\"ZmZmZmZmP0BmZmZmZuY+QGZmZmZmZj5AZmZmZmbmPUBmZmZmZmY9QGZmZmZm5jxAZmZmZmZmPEBmZmZmZuY7QGZmZmZmZjtAZmZmZmbmOkBmZmZmZmY6QGZmZmZm5jlAZmZmZmZmOUBmZmZmZuY4QGZmZmZmZjhAZmZmZmbmN0BmZmZmZmY3QGZmZmZm5jZAZmZmZmZmNkBmZmZmZuY1QGZmZmZmZjVAZmZmZmbmNEBmZmZmZmY0QGZmZmZm5jNAZmZmZmZmM0BmZmZmZuYyQGdmZmZmZjJAamZmZmbmMUB1ZmZmZmYxQKBmZmZm5jBAQmdmZmZmMEBH08zMzMwvQDjlzMzMzC5A2yjNzMzMLUDGJ87MzMwsQJ3o0czMzCtAJg7gzMzMKkBEYBXNzMwpQJZZ3s3MzChAvNnT0MzMJ0Bq+/rbzMwmQBBiBAbNzCVANnt1pM3MJEAaE6P5z8wjQCuHT8TYzCJA4SDi5PnMIUC0mjqdds0gQJoep2mVnh9AMsoWlSasHUBYsqobc9wbQAmyzFNccxpA+/x6sGbKGUBNrXe3GK8ZQLOKAI1ZSBlAbyc4zPPhGEAN4i1kjXsYQM4BUv0mFRhAXEtllsCuF0DXrmgvWkgXQEamWsjz4RZA1ZU5YY17FkD0xgP6JhUWQBdot5LArhVA14xSK1pIFUBULtPD8+EUQBEsN1yNexRASE189CYVFEDaQqCMwK4TQOOpoCRaSBNAJw97vPPhEkBm8yxUjXsSQL3Qs+smFRJARyENg8CuEUAmZzYaWkgRQB02LbHz4RBAAT/vR417EEBEXXreJhUQQH5NmemAXQ9AafzIFbSQDkBvUYFB58MNQN3MwGwa9wxACx6Hl00qDECcZNXBgF0LQPN6ruuzkApA6koXFefDCUD3LRc+GvcIQPtZuGZNKghA51sIj4BdB0DgoRi3s5AGQDsW/97mwwVAGs3WBhr3BEBSxsAuTSoEQLfF5FaAXQNAiUNyf7OQAkB8d6Go5sMBQGGAtNIZ9wBAEKv4/UwqAEDntY9VALv+P/ItFLNmIf0/TntuFc2H+z86lmV9M+75Pw==\",\"dtype\":\"float64\",\"shape\":[101]},\"x\":[0,100,200,300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,1600,1700,1800,1900,2000,2100,2200,2300,2400,2500,2600,2700,2800,2900,3000,3100,3200,3300,3400,3500,3600,3700,3800,3900,4000,4100,4200,4300,4400,4500,4600,4700,4800,4900,5000,5100,5200,5300,5400,5500,5600,5700,5800,5900,6000,6100,6200,6300,6400,6500,6600,6700,6800,6900,7000,7100,7200,7300,7400,7500,7600,7700,7800,7900,8000,8100,8200,8300,8400,8500,8600,8700,8800,8900,9000,9100,9200,9300,9400,9500,9600,9700,9800,9900,10000]}},{\"cols\":[\"Variable\",\"x\",\"value\"],\"column_source\":{\"id\":\"6816\",\"type\":\"ColumnDataSource\"},\"kind\":\"ColumnDataChanged\",\"new\":{\"Variable\":[\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\"],\"value\":{\"__ndarray__\":\"ZmZmZmZmPkBmZmZmZuY9QGZmZmZmZj1AZmZmZmbmPEBmZmZmZmY8QGZmZmZm5jtAZmZmZmZmO0BmZmZmZuY6QGZmZmZmZjpAZmZmZmbmOUBmZmZmZmY5QGZmZmZm5jhAZmZmZmZmOEBmZmZmZuY3QGZmZmZmZjdAZmZmZmbmNkBmZmZmZmY2QGZmZmZm5jVAZmZmZmZmNUBmZmZmZuY0QGZmZmZmZjRAZmZmZmbmM0BmZmZmZmYzQGZmZmZm5jJAZmZmZmZmMkBmZmZmZuYxQGZmZmZmZjFAZmZmZmbmMEBmZmZmZmYwQMzMzMzMzC9AzMzMzMzMLkDOzMzMzMwtQNLMzMzMzCxA5MzMzMzMK0AlzczMzMwqQBzOzMzMzClAvtHMzMzMKEBx38zMzMwnQBETzczMzCZAptXNzMzMJUAOs9DMzMwkQFx/28zMzCNAJDIEzczMIkDrk53NzMwhQGN338/MzCBATq28sJmZH0Cn2WrwmZkdQM77YduamRtAIrWQDZ6ZGUAte4oap5kXQFYmsu+zmRVAlfbdvK+ZE0CXGl1GNTMTQM5ss8rMzBJA4V1qZmZmEkBt9/////8RQICYmZmZmRFA9jEzMzMzEUB7y8zMzMwQQP9kZmZmZhBABf3/////D0AMMDMzMzMPQBRjZmZmZg5AHJaZmZmZDUAnyczMzMwMQDX8/////wtASC8zMzMzC0BfYmZmZmYKQH6VmZmZmQlApsjMzMzMCEDZ+/////8HQBkvMzMzMwdAaWJmZmZmBkDLlZmZmZkFQETJzMzMzARA1/z/////A0CIMDMzMzMDQF1kZmZmZgJAWpiZmZmZAUCGzMzMzMwAQOgAAAAAAABADmtmZmZm/j/Y1MzMzMz8P0A/MzMzM/s/WqqZmZmZ+T8/FgAAAAD4PweDZmZmZvY/zvDMzMzM9D+zXzMzMzPzP9jPmZmZmfE/YUEAAAAA8D/raM3MzMzsP4RSmpmZmek/6z9nZmZm5j+GMTQzMzPjP8UnAQAAAOA/QEacmZmZ2T8uSDYzMzPTP9KsoJmZmck/bMipmZmZuT8BAADoEPhjPQ==\",\"dtype\":\"float64\",\"shape\":[101]},\"x\":[0,100,200,300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,1600,1700,1800,1900,2000,2100,2200,2300,2400,2500,2600,2700,2800,2900,3000,3100,3200,3300,3400,3500,3600,3700,3800,3900,4000,4100,4200,4300,4400,4500,4600,4700,4800,4900,5000,5100,5200,5300,5400,5500,5600,5700,5800,5900,6000,6100,6200,6300,6400,6500,6600,6700,6800,6900,7000,7100,7200,7300,7400,7500,7600,7700,7800,7900,8000,8100,8200,8300,8400,8500,8600,8700,8800,8900,9000,9100,9200,9300,9400,9500,9600,9700,9800,9900,10000]}},{\"attr\":\"text\",\"kind\":\"ModelChanged\",\"model\":{\"id\":\"6660\",\"type\":\"Title\"},\"new\":\"t: 0\"},{\"cols\":[\"Variable\",\"x\",\"value\"],\"column_source\":{\"id\":\"6694\",\"type\":\"ColumnDataSource\"},\"kind\":\"ColumnDataChanged\",\"new\":{\"Variable\":[\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\"],\"value\":{\"__ndarray__\":\"ZmZmZmZmP0BmZmZmZuY+QGZmZmZmZj5AZmZmZmbmPUBmZmZmZmY9QGZmZmZm5jxAZmZmZmZmPEBmZmZmZuY7QGZmZmZmZjtAZmZmZmbmOkBmZmZmZmY6QGZmZmZm5jlAZmZmZmZmOUBmZmZmZuY4QGZmZmZmZjhAZmZmZmbmN0BmZmZmZmY3QGZmZmZm5jZAZmZmZmZmNkBmZmZmZuY1QGZmZmZmZjVAZmZmZmbmNEBmZmZmZmY0QGZmZmZm5jNAZmZmZmZmM0BmZmZmZuYyQGdmZmZmZjJAamZmZmbmMUB1ZmZmZmYxQKBmZmZm5jBAQmdmZmZmMEBH08zMzMwvQDjlzMzMzC5A2yjNzMzMLUDGJ87MzMwsQJ3o0czMzCtAJg7gzMzMKkBEYBXNzMwpQJZZ3s3MzChAvNnT0MzMJ0Bq+/rbzMwmQBBiBAbNzCVANnt1pM3MJEAaE6P5z8wjQCuHT8TYzCJA4SDi5PnMIUC0mjqdds0gQJoep2mVnh9AMsoWlSasHUBYsqobc9wbQAmyzFNccxpA+/x6sGbKGUBNrXe3GK8ZQLOKAI1ZSBlAbyc4zPPhGEAN4i1kjXsYQM4BUv0mFRhAXEtllsCuF0DXrmgvWkgXQEamWsjz4RZA1ZU5YY17FkD0xgP6JhUWQBdot5LArhVA14xSK1pIFUBULtPD8+EUQBEsN1yNexRASE189CYVFEDaQqCMwK4TQOOpoCRaSBNAJw97vPPhEkBm8yxUjXsSQL3Qs+smFRJARyENg8CuEUAmZzYaWkgRQB02LbHz4RBAAT/vR417EEBEXXreJhUQQH5NmemAXQ9AafzIFbSQDkBvUYFB58MNQN3MwGwa9wxACx6Hl00qDECcZNXBgF0LQPN6ruuzkApA6koXFefDCUD3LRc+GvcIQPtZuGZNKghA51sIj4BdB0DgoRi3s5AGQDsW/97mwwVAGs3WBhr3BEBSxsAuTSoEQLfF5FaAXQNAiUNyf7OQAkB8d6Go5sMBQGGAtNIZ9wBAEKv4/UwqAEDntY9VALv+P/ItFLNmIf0/TntuFc2H+z86lmV9M+75Pw==\",\"dtype\":\"float64\",\"shape\":[101]},\"x\":[0,100,200,300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,1600,1700,1800,1900,2000,2100,2200,2300,2400,2500,2600,2700,2800,2900,3000,3100,3200,3300,3400,3500,3600,3700,3800,3900,4000,4100,4200,4300,4400,4500,4600,4700,4800,4900,5000,5100,5200,5300,5400,5500,5600,5700,5800,5900,6000,6100,6200,6300,6400,6500,6600,6700,6800,6900,7000,7100,7200,7300,7400,7500,7600,7700,7800,7900,8000,8100,8200,8300,8400,8500,8600,8700,8800,8900,9000,9100,9200,9300,9400,9500,9600,9700,9800,9900,10000]}},{\"cols\":[\"Variable\",\"x\",\"value\"],\"column_source\":{\"id\":\"6710\",\"type\":\"ColumnDataSource\"},\"kind\":\"ColumnDataChanged\",\"new\":{\"Variable\":[\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\"],\"value\":{\"__ndarray__\":\"ZmZmZmZmPkBmZmZmZuY9QGZmZmZmZj1AZmZmZmbmPEBmZmZmZmY8QGZmZmZm5jtAZmZmZmZmO0BmZmZmZuY6QGZmZmZmZjpAZmZmZmbmOUBmZmZmZmY5QGZmZmZm5jhAZmZmZmZmOEBmZmZmZuY3QGZmZmZmZjdAZmZmZmbmNkBmZmZmZmY2QGZmZmZm5jVAZmZmZmZmNUBmZmZmZuY0QGZmZmZmZjRAZmZmZmbmM0BmZmZmZmYzQGZmZmZm5jJAZmZmZmZmMkBmZmZmZuYxQGZmZmZmZjFAZmZmZmbmMEBmZmZmZmYwQMzMzMzMzC9AzMzMzMzMLkDOzMzMzMwtQNLMzMzMzCxA5MzMzMzMK0AlzczMzMwqQBzOzMzMzClAvtHMzMzMKEBx38zMzMwnQBETzczMzCZAptXNzMzMJUAOs9DMzMwkQFx/28zMzCNAJDIEzczMIkDrk53NzMwhQGN338/MzCBATq28sJmZH0Cn2WrwmZkdQM77YduamRtAIrWQDZ6ZGUAte4oap5kXQFYmsu+zmRVAlfbdvK+ZE0CXGl1GNTMTQM5ss8rMzBJA4V1qZmZmEkBt9/////8RQICYmZmZmRFA9jEzMzMzEUB7y8zMzMwQQP9kZmZmZhBABf3/////D0AMMDMzMzMPQBRjZmZmZg5AHJaZmZmZDUAnyczMzMwMQDX8/////wtASC8zMzMzC0BfYmZmZmYKQH6VmZmZmQlApsjMzMzMCEDZ+/////8HQBkvMzMzMwdAaWJmZmZmBkDLlZmZmZkFQETJzMzMzARA1/z/////A0CIMDMzMzMDQF1kZmZmZgJAWpiZmZmZAUCGzMzMzMwAQOgAAAAAAABADmtmZmZm/j/Y1MzMzMz8P0A/MzMzM/s/WqqZmZmZ+T8/FgAAAAD4PweDZmZmZvY/zvDMzMzM9D+zXzMzMzPzP9jPmZmZmfE/YUEAAAAA8D/raM3MzMzsP4RSmpmZmek/6z9nZmZm5j+GMTQzMzPjP8UnAQAAAOA/QEacmZmZ2T8uSDYzMzPTP9KsoJmZmck/bMipmZmZuT8BAADoEPhjPQ==\",\"dtype\":\"float64\",\"shape\":[101]},\"x\":[0,100,200,300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,1600,1700,1800,1900,2000,2100,2200,2300,2400,2500,2600,2700,2800,2900,3000,3100,3200,3300,3400,3500,3600,3700,3800,3900,4000,4100,4200,4300,4400,4500,4600,4700,4800,4900,5000,5100,5200,5300,5400,5500,5600,5700,5800,5900,6000,6100,6200,6300,6400,6500,6600,6700,6800,6900,7000,7100,7200,7300,7400,7500,7600,7700,7800,7900,8000,8100,8200,8300,8400,8500,8600,8700,8800,8900,9000,9100,9200,9300,9400,9500,9600,9700,9800,9900,10000]}},{\"cols\":[\"Variable\",\"x\",\"value\"],\"column_source\":{\"id\":\"6797\",\"type\":\"ColumnDataSource\"},\"kind\":\"ColumnDataChanged\",\"new\":{\"Variable\":[\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\"],\"value\":{\"__ndarray__\":\"ZmZmZmZmP0BmZmZmZuY+QGZmZmZmZj5AZmZmZmbmPUBmZmZmZmY9QGZmZmZm5jxAZmZmZmZmPEBmZmZmZuY7QGZmZmZmZjtAZmZmZmbmOkBmZmZmZmY6QGZmZmZm5jlAZmZmZmZmOUBmZmZmZuY4QGZmZmZmZjhAZmZmZmbmN0BmZmZmZmY3QGZmZmZm5jZAZmZmZmZmNkBmZmZmZuY1QGZmZmZmZjVAZmZmZmbmNEBmZmZmZmY0QGZmZmZm5jNAZmZmZmZmM0BmZmZmZuYyQGdmZmZmZjJAamZmZmbmMUB1ZmZmZmYxQKBmZmZm5jBAQmdmZmZmMEBH08zMzMwvQDjlzMzMzC5A2yjNzMzMLUDGJ87MzMwsQJ3o0czMzCtAJg7gzMzMKkBEYBXNzMwpQJZZ3s3MzChAvNnT0MzMJ0Bq+/rbzMwmQBBiBAbNzCVANnt1pM3MJEAaE6P5z8wjQCuHT8TYzCJA4SDi5PnMIUC0mjqdds0gQJoep2mVnh9AMsoWlSasHUBYsqobc9wbQAmyzFNccxpA+/x6sGbKGUBNrXe3GK8ZQLOKAI1ZSBlAbyc4zPPhGEAN4i1kjXsYQM4BUv0mFRhAXEtllsCuF0DXrmgvWkgXQEamWsjz4RZA1ZU5YY17FkD0xgP6JhUWQBdot5LArhVA14xSK1pIFUBULtPD8+EUQBEsN1yNexRASE189CYVFEDaQqCMwK4TQOOpoCRaSBNAJw97vPPhEkBm8yxUjXsSQL3Qs+smFRJARyENg8CuEUAmZzYaWkgRQB02LbHz4RBAAT/vR417EEBEXXreJhUQQH5NmemAXQ9AafzIFbSQDkBvUYFB58MNQN3MwGwa9wxACx6Hl00qDECcZNXBgF0LQPN6ruuzkApA6koXFefDCUD3LRc+GvcIQPtZuGZNKghA51sIj4BdB0DgoRi3s5AGQDsW/97mwwVAGs3WBhr3BEBSxsAuTSoEQLfF5FaAXQNAiUNyf7OQAkB8d6Go5sMBQGGAtNIZ9wBAEKv4/UwqAEDntY9VALv+P/ItFLNmIf0/TntuFc2H+z86lmV9M+75Pw==\",\"dtype\":\"float64\",\"shape\":[101]},\"x\":[0,100,200,300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,1600,1700,1800,1900,2000,2100,2200,2300,2400,2500,2600,2700,2800,2900,3000,3100,3200,3300,3400,3500,3600,3700,3800,3900,4000,4100,4200,4300,4400,4500,4600,4700,4800,4900,5000,5100,5200,5300,5400,5500,5600,5700,5800,5900,6000,6100,6200,6300,6400,6500,6600,6700,6800,6900,7000,7100,7200,7300,7400,7500,7600,7700,7800,7900,8000,8100,8200,8300,8400,8500,8600,8700,8800,8900,9000,9100,9200,9300,9400,9500,9600,9700,9800,9900,10000]}},{\"cols\":[\"Variable\",\"x\",\"value\"],\"column_source\":{\"id\":\"6816\",\"type\":\"ColumnDataSource\"},\"kind\":\"ColumnDataChanged\",\"new\":{\"Variable\":[\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\"],\"value\":{\"__ndarray__\":\"ZmZmZmZmPkBmZmZmZuY9QGZmZmZmZj1AZmZmZmbmPEBmZmZmZmY8QGZmZmZm5jtAZmZmZmZmO0BmZmZmZuY6QGZmZmZmZjpAZmZmZmbmOUBmZmZmZmY5QGZmZmZm5jhAZmZmZmZmOEBmZmZmZuY3QGZmZmZmZjdAZmZmZmbmNkBmZmZmZmY2QGZmZmZm5jVAZmZmZmZmNUBmZmZmZuY0QGZmZmZmZjRAZmZmZmbmM0BmZmZmZmYzQGZmZmZm5jJAZmZmZmZmMkBmZmZmZuYxQGZmZmZmZjFAZmZmZmbmMEBmZmZmZmYwQMzMzMzMzC9AzMzMzMzMLkDOzMzMzMwtQNLMzMzMzCxA5MzMzMzMK0AlzczMzMwqQBzOzMzMzClAvtHMzMzMKEBx38zMzMwnQBETzczMzCZAptXNzMzMJUAOs9DMzMwkQFx/28zMzCNAJDIEzczMIkDrk53NzMwhQGN338/MzCBATq28sJmZH0Cn2WrwmZkdQM77YduamRtAIrWQDZ6ZGUAte4oap5kXQFYmsu+zmRVAlfbdvK+ZE0CXGl1GNTMTQM5ss8rMzBJA4V1qZmZmEkBt9/////8RQICYmZmZmRFA9jEzMzMzEUB7y8zMzMwQQP9kZmZmZhBABf3/////D0AMMDMzMzMPQBRjZmZmZg5AHJaZmZmZDUAnyczMzMwMQDX8/////wtASC8zMzMzC0BfYmZmZmYKQH6VmZmZmQlApsjMzMzMCEDZ+/////8HQBkvMzMzMwdAaWJmZmZmBkDLlZmZmZkFQETJzMzMzARA1/z/////A0CIMDMzMzMDQF1kZmZmZgJAWpiZmZmZAUCGzMzMzMwAQOgAAAAAAABADmtmZmZm/j/Y1MzMzMz8P0A/MzMzM/s/WqqZmZmZ+T8/FgAAAAD4PweDZmZmZvY/zvDMzMzM9D+zXzMzMzPzP9jPmZmZmfE/YUEAAAAA8D/raM3MzMzsP4RSmpmZmek/6z9nZmZm5j+GMTQzMzPjP8UnAQAAAOA/QEacmZmZ2T8uSDYzMzPTP9KsoJmZmck/bMipmZmZuT8BAADoEPhjPQ==\",\"dtype\":\"float64\",\"shape\":[101]},\"x\":[0,100,200,300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,1600,1700,1800,1900,2000,2100,2200,2300,2400,2500,2600,2700,2800,2900,3000,3100,3200,3300,3400,3500,3600,3700,3800,3900,4000,4100,4200,4300,4400,4500,4600,4700,4800,4900,5000,5100,5200,5300,5400,5500,5600,5700,5800,5900,6000,6100,6200,6300,6400,6500,6600,6700,6800,6900,7000,7100,7200,7300,7400,7500,7600,7700,7800,7900,8000,8100,8200,8300,8400,8500,8600,8700,8800,8900,9000,9100,9200,9300,9400,9500,9600,9700,9800,9900,10000]}}],\"references\":[]},\"root\":\"6659\"}", "1": "{\"content\":{\"events\":[{\"attr\":\"end\",\"kind\":\"ModelChanged\",\"model\":{\"id\":\"6654\",\"type\":\"Range1d\"},\"new\":31.40173153949178},{\"attr\":\"reset_end\",\"kind\":\"ModelChanged\",\"model\":{\"id\":\"6654\",\"type\":\"Range1d\"},\"new\":31.40173153949178},{\"cols\":[\"Variable\",\"x\",\"value\"],\"column_source\":{\"id\":\"6694\",\"type\":\"ColumnDataSource\"},\"kind\":\"ColumnDataChanged\",\"new\":{\"Variable\":[\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\"],\"value\":{\"__ndarray__\":\"kePP4NdmP0Aseehy2OY+QI3I3O/OZz5ABCTMaIPoPUAdt9f6WWk9QCYgmcY56jxAbDLqGDBrPEDcZAzuPuw7QMlCggZsbTtAIBVwYbzuOkBEEcKpNXA6QLx83NTd8TlAxDAKTbtzOUAsM/Lw1PU4QLjoXh8yeDhAPHB8vtr6N0A4GY1D1303QHZgdLkwATdAVLV4xvCENkCTGwGxIQk2QDCUQmPOjTVA/n3DbQITNUDGIKAIypg0QBprexMyHzRAEMgIFEimM0DqqB0zGi4zQKKSOzi3tjJA4viFgy5AMkBJ9xkGkMoxQNADwTjsVTFALfr6EFTiMEBZWF/02G8wQPhMslQZ/S9AsJKJmAIdL0CMuPVnkj8uQFdBrtHtZC1AqBidFjqNLEB4/1Z+nLgrQEJWFik65ypALT123zcZKkB20TPguU4pQCv2QqzjhyhAuYeL0dfEJ0CICKu0twUnQNiuHVqjSiZAmC44L7mTJUCai2HTFeEkQJmTAeLTMiRAnS+dvQuJI0CWW51c0+MiQFoLQBg+QyJAhVMzflynIUDRg1olPBAhQOUhOobnfSBAluIEr8vgH0AR2k/edc8eQHRm2lDOxx1AF2Fjns7JHECsE4YhadUbQCS6p+SI6hpAUpcvmhEJGkA+wrKf3zAZQNPeUAvIYRhAX7/4wZibF0DrZqSUGN4WQETZyGEHKRZATUMoNx58FUAptdRuD9cUQGOuVcCGORRApJ0WPCmjE0B4bZ4hlRMTQOHSOXJhihJA98acAB0HEkA9nlydTIkRQLm80UloEBFAW6Bam9ibEEDzUw4u9yoQQBawCf0peg9AmEk9rQyjDkDOu6UOYM8NQJ46y6sh/gxAETP3eokuDECGs0rhBWALQMjprQsykgpAbgW078rECUA9l5p0pfcIQMmR9LGmKghAxFwISr5dB0D6gJKF4pAGQKU9fsENxAVAsETHyjz3BEDLI2babSoEQMHPuvifXQNAC+uyodKQAkAvyDmQBcQBQLE82KA49wBAc2yowWsqAEAKa4TTPbv+P8qTfCmkIf0/NebRgAqI+z9h5DLXcO75Pw==\",\"dtype\":\"float64\",\"shape\":[101]},\"x\":[0,100,200,300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,1600,1700,1800,1900,2000,2100,2200,2300,2400,2500,2600,2700,2800,2900,3000,3100,3200,3300,3400,3500,3600,3700,3800,3900,4000,4100,4200,4300,4400,4500,4600,4700,4800,4900,5000,5100,5200,5300,5400,5500,5600,5700,5800,5900,6000,6100,6200,6300,6400,6500,6600,6700,6800,6900,7000,7100,7200,7300,7400,7500,7600,7700,7800,7900,8000,8100,8200,8300,8400,8500,8600,8700,8800,8900,9000,9100,9200,9300,9400,9500,9600,9700,9800,9900,10000]}},{\"cols\":[\"Variable\",\"x\",\"value\"],\"column_source\":{\"id\":\"6710\",\"type\":\"ColumnDataSource\"},\"kind\":\"ColumnDataChanged\",\"new\":{\"Variable\":[\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\"],\"value\":{\"__ndarray__\":\"ZmZmZmZmPkAB/H74ZuY9QNoiRUdaZz1APdukUQnoPEBoW7vY12g8QKmJIfys6TtAOsdg4pVqO0CvB0RjlOs6QHvExxCubDpADG4mteftOUABF+y+Rm85QNCjCODQ8DhAn2IxOIxyOEB8P25Uf/Q3QDQ48DqxdjdAQT5kcin5NkAKLb0J8Hs2QHlJ1p4N/zVAFttNZIuCNUBZq1wmcwY1QNPUnU7PijRAIo6s5qoPNEC4j4KZEZUzQHeDgbMPGzNAkMgTIbKhMkAxktJrBikyQJCmIbYasTFAgI8ztf05MUC87WupvsMwQJ7JGFVtTjBAV0/+4jO0L0BCmnVEqs0uQELw6c1f6S1AeKDzFncHLUBU7nAsEygsQMe/e2pXSytAs8p9U2dxKkD2+JRkZpopQMSUgud3xihAb7Zowr71J0CnWqJFXSgnQCV2C/h0XiZAbkMXYiaYJUBd4xvYkNUkQMMvQ0TSFiRAokmZ8AZcI0Bv67lRSaUiQJHMpdKx8iFA51hRolZEIUBpioWDS5ogQN5oZT9D6R9ApsC2us6mHkAKmoV1UG0dQBAHHlvZPBxA7RgjEHQVG0DF3NbJJPcZQAoZgjPp4RhAiThhY7jVF0A+YnTggtIWQDrvhboy2BVAQBittavmFEAAgYSKy/0TQK4WQDxqHRNAYDHIhVpFEkBrNghfanURQCsKwJtjrRBAZJ7jShnaD0BMZSylUmgOQAC7Eb33BA1AeM75E4yvC0BTRrb3lGcKQB/GGUKdLAlAf33iuDr+B0A99pslFNwGQCmR3l/ixQVAchwAsmG7BEAHmxIuLrwDQK7zvtqXxwJAIzLzI4rcAUD+PeErmfkAQMtqOlAuHQBAKEci0XiL/j8ro6k0zuP8P0VcfGUrQfs/4qbRT+mh+T/VxaKx2QT4P/2CFcktafY/PfHwMl3O9D9cukm7EDTzP8REUCUSmvE/7KVCikAA8D9PC6LSEM3sP08XWuS8mek/QgqFbXhm5j9aFEZDPDPjPz5L8HkEAOA/3dCZ7J2Z2T85SE43NTPTPwLnn1ibmck/81kE0pqZuT84/27J0TAzPg==\",\"dtype\":\"float64\",\"shape\":[101]},\"x\":[0,100,200,300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,1600,1700,1800,1900,2000,2100,2200,2300,2400,2500,2600,2700,2800,2900,3000,3100,3200,3300,3400,3500,3600,3700,3800,3900,4000,4100,4200,4300,4400,4500,4600,4700,4800,4900,5000,5100,5200,5300,5400,5500,5600,5700,5800,5900,6000,6100,6200,6300,6400,6500,6600,6700,6800,6900,7000,7100,7200,7300,7400,7500,7600,7700,7800,7900,8000,8100,8200,8300,8400,8500,8600,8700,8800,8900,9000,9100,9200,9300,9400,9500,9600,9700,9800,9900,10000]}},{\"cols\":[\"Variable\",\"x\",\"value\"],\"column_source\":{\"id\":\"6797\",\"type\":\"ColumnDataSource\"},\"kind\":\"ColumnDataChanged\",\"new\":{\"Variable\":[\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\"],\"value\":{\"__ndarray__\":\"ZmZmZmZmP0BmZmZmZuY+QGZmZmZmZj5AZmZmZmbmPUBmZmZmZmY9QGZmZmZm5jxAZmZmZmZmPEBmZmZmZuY7QGZmZmZmZjtAZmZmZmbmOkBmZmZmZmY6QGZmZmZm5jlAZmZmZmZmOUBmZmZmZuY4QGZmZmZmZjhAZmZmZmbmN0BmZmZmZmY3QGZmZmZm5jZAZmZmZmZmNkBmZmZmZuY1QGZmZmZmZjVAZmZmZmbmNEBmZmZmZmY0QGZmZmZm5jNAZmZmZmZmM0BmZmZmZuYyQGdmZmZmZjJAamZmZmbmMUB1ZmZmZmYxQKBmZmZm5jBAQmdmZmZmMEBH08zMzMwvQDjlzMzMzC5A2yjNzMzMLUDGJ87MzMwsQJ3o0czMzCtAJg7gzMzMKkBEYBXNzMwpQJZZ3s3MzChAvNnT0MzMJ0Bq+/rbzMwmQBBiBAbNzCVANnt1pM3MJEAaE6P5z8wjQCuHT8TYzCJA4SDi5PnMIUC0mjqdds0gQJoep2mVnh9AMsoWlSasHUBYsqobc9wbQAmyzFNccxpA+/x6sGbKGUBNrXe3GK8ZQLOKAI1ZSBlAbyc4zPPhGEAN4i1kjXsYQM4BUv0mFRhAXEtllsCuF0DXrmgvWkgXQEamWsjz4RZA1ZU5YY17FkD0xgP6JhUWQBdot5LArhVA14xSK1pIFUBULtPD8+EUQBEsN1yNexRASE189CYVFEDaQqCMwK4TQOOpoCRaSBNAJw97vPPhEkBm8yxUjXsSQL3Qs+smFRJARyENg8CuEUAmZzYaWkgRQB02LbHz4RBAAT/vR417EEBEXXreJhUQQH5NmemAXQ9AafzIFbSQDkBvUYFB58MNQN3MwGwa9wxACx6Hl00qDECcZNXBgF0LQPN6ruuzkApA6koXFefDCUD3LRc+GvcIQPtZuGZNKghA51sIj4BdB0DgoRi3s5AGQDsW/97mwwVAGs3WBhr3BEBSxsAuTSoEQLfF5FaAXQNAiUNyf7OQAkB8d6Go5sMBQGGAtNIZ9wBAEKv4/UwqAEDntY9VALv+P/ItFLNmIf0/TntuFc2H+z86lmV9M+75Pw==\",\"dtype\":\"float64\",\"shape\":[101]},\"x\":[0,100,200,300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,1600,1700,1800,1900,2000,2100,2200,2300,2400,2500,2600,2700,2800,2900,3000,3100,3200,3300,3400,3500,3600,3700,3800,3900,4000,4100,4200,4300,4400,4500,4600,4700,4800,4900,5000,5100,5200,5300,5400,5500,5600,5700,5800,5900,6000,6100,6200,6300,6400,6500,6600,6700,6800,6900,7000,7100,7200,7300,7400,7500,7600,7700,7800,7900,8000,8100,8200,8300,8400,8500,8600,8700,8800,8900,9000,9100,9200,9300,9400,9500,9600,9700,9800,9900,10000]}},{\"cols\":[\"Variable\",\"x\",\"value\"],\"column_source\":{\"id\":\"6816\",\"type\":\"ColumnDataSource\"},\"kind\":\"ColumnDataChanged\",\"new\":{\"Variable\":[\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\"],\"value\":{\"__ndarray__\":\"ZmZmZmZmPkBmZmZmZuY9QGZmZmZmZj1AZmZmZmbmPEBmZmZmZmY8QGZmZmZm5jtAZmZmZmZmO0BmZmZmZuY6QGZmZmZmZjpAZmZmZmbmOUBmZmZmZmY5QGZmZmZm5jhAZmZmZmZmOEBmZmZmZuY3QGZmZmZmZjdAZmZmZmbmNkBmZmZmZmY2QGZmZmZm5jVAZmZmZmZmNUBmZmZmZuY0QGZmZmZmZjRAZmZmZmbmM0BmZmZmZmYzQGZmZmZm5jJAZmZmZmZmMkBmZmZmZuYxQGZmZmZmZjFAZmZmZmbmMEBmZmZmZmYwQMzMzMzMzC9AzMzMzMzMLkDOzMzMzMwtQNLMzMzMzCxA5MzMzMzMK0AlzczMzMwqQBzOzMzMzClAvtHMzMzMKEBx38zMzMwnQBETzczMzCZAptXNzMzMJUAOs9DMzMwkQFx/28zMzCNAJDIEzczMIkDrk53NzMwhQGN338/MzCBATq28sJmZH0Cn2WrwmZkdQM77YduamRtAIrWQDZ6ZGUAte4oap5kXQFYmsu+zmRVAlfbdvK+ZE0CXGl1GNTMTQM5ss8rMzBJA4V1qZmZmEkBt9/////8RQICYmZmZmRFA9jEzMzMzEUB7y8zMzMwQQP9kZmZmZhBABf3/////D0AMMDMzMzMPQBRjZmZmZg5AHJaZmZmZDUAnyczMzMwMQDX8/////wtASC8zMzMzC0BfYmZmZmYKQH6VmZmZmQlApsjMzMzMCEDZ+/////8HQBkvMzMzMwdAaWJmZmZmBkDLlZmZmZkFQETJzMzMzARA1/z/////A0CIMDMzMzMDQF1kZmZmZgJAWpiZmZmZAUCGzMzMzMwAQOgAAAAAAABADmtmZmZm/j/Y1MzMzMz8P0A/MzMzM/s/WqqZmZmZ+T8/FgAAAAD4PweDZmZmZvY/zvDMzMzM9D+zXzMzMzPzP9jPmZmZmfE/YUEAAAAA8D/raM3MzMzsP4RSmpmZmek/6z9nZmZm5j+GMTQzMzPjP8UnAQAAAOA/QEacmZmZ2T8uSDYzMzPTP9KsoJmZmck/bMipmZmZuT8BAADoEPhjPQ==\",\"dtype\":\"float64\",\"shape\":[101]},\"x\":[0,100,200,300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,1600,1700,1800,1900,2000,2100,2200,2300,2400,2500,2600,2700,2800,2900,3000,3100,3200,3300,3400,3500,3600,3700,3800,3900,4000,4100,4200,4300,4400,4500,4600,4700,4800,4900,5000,5100,5200,5300,5400,5500,5600,5700,5800,5900,6000,6100,6200,6300,6400,6500,6600,6700,6800,6900,7000,7100,7200,7300,7400,7500,7600,7700,7800,7900,8000,8100,8200,8300,8400,8500,8600,8700,8800,8900,9000,9100,9200,9300,9400,9500,9600,9700,9800,9900,10000]}},{\"attr\":\"text\",\"kind\":\"ModelChanged\",\"model\":{\"id\":\"6660\",\"type\":\"Title\"},\"new\":\"t: 600\"}],\"references\":[]},\"root\":\"6659\"}", "2": "{\"content\":{\"events\":[{\"attr\":\"end\",\"kind\":\"ModelChanged\",\"model\":{\"id\":\"6654\",\"type\":\"Range1d\"},\"new\":31.412982789442665},{\"attr\":\"reset_end\",\"kind\":\"ModelChanged\",\"model\":{\"id\":\"6654\",\"type\":\"Range1d\"},\"new\":31.412982789442665},{\"cols\":[\"Variable\",\"x\",\"value\"],\"column_source\":{\"id\":\"6694\",\"type\":\"ColumnDataSource\"},\"kind\":\"ColumnDataChanged\",\"new\":{\"Variable\":[\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\"],\"value\":{\"__ndarray__\":\"lHd2PblpP0C9jIppvek+QPiA/vLBcD5AkebH1br1PUDQ97G1bns9QCY1a8wRAT1AY3RnnOyGPECXOJJE9Aw8QF6EdiI3kztANoglCbwZO0BkNE0ojKA6QMgv1xGwJzpAgfOMoTCvOUBMu+W4Fjc5QAiExFRrvzhAhlLMhzdIOEB6JpB8hNE3QBx+AXVbWzdAPbtIysXlNkAn5hDszHA2QPjMjV96/DVACSElvteINUAOA8Cz7hU1QFl4wvzIozRAbEOpY3AyNEB4Vk6+7sEzQBHK1OpNUjNAeas9zJfjMkDncqdG1nUyQGVnOjsTCTJAlarEg1idMUD4GAnurzIxQACbxDYjyTBAu/BtBLxgMEDs2GjDB/MvQH3xhG8IJy9Ao1aSkIxdLkBCEbVOppYtQIL1MGpn0ixAz7R9LuEQLEAlgh5lJFIrQAZgS0hBlipA/tB6dUfdKUCuO9vfRScpQMLhy8JKdChALsxllGPEJ0BUhSX4nBcnQDjhxrECbiZAsWpkmJ/HJUAjUOyJfSQlQITX/F6lhCRAxnU63x7oI0BsnDG28E4jQLAm1mgguSJAsv+xS7ImIkDyItR5qZchQGNukMwHDCFAqeIf1M2DIEB2rF+i9f0fQBCZ2l4Z+x5AeBIwAgD/HUCqL073nwkdQMupDOvsGhxASRzkydcyG0CUFua/TlEaQPeJ9Do9dhlAoIQw74uhGEC0KZHdINMXQF6YjFzfChdAXTS1IqhIFkBa2yZTWYwVQM13mYvO1RRAMr3p8+AkFEDHg+ZOZ3kTQPZcMgw20xJArxcPWx8yEkBf/PU985URQPQK9p5//hBA/pT0ZJBrEEDkwj8U37kPQBGQVmjKpA5AxB2Znm+XDUCpDN1aWJEMQFSuSlcLkgtAAaVAwQyZCkD4iRav3qUJQEpk2LYBuAhA4ImVrvXOB0DLK9udOuoGQPcYWuRRCQZALuKWkr8rBUCKxOfmC1EEQKUT2tTEeANA8Pkvc3+iAkDEKjUp2c0BQE2Hfnl4+gBA3GE0VQ0oAEB6dJnnoaz+P9XYdnUKCv0/flz0ludn+z9WvYWm2cX5Pw==\",\"dtype\":\"float64\",\"shape\":[101]},\"x\":[0,100,200,300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,1600,1700,1800,1900,2000,2100,2200,2300,2400,2500,2600,2700,2800,2900,3000,3100,3200,3300,3400,3500,3600,3700,3800,3900,4000,4100,4200,4300,4400,4500,4600,4700,4800,4900,5000,5100,5200,5300,5400,5500,5600,5700,5800,5900,6000,6100,6200,6300,6400,6500,6600,6700,6800,6900,7000,7100,7200,7300,7400,7500,7600,7700,7800,7900,8000,8100,8200,8300,8400,8500,8600,8700,8800,8900,9000,9100,9200,9300,9400,9500,9600,9700,9800,9900,10000]}},{\"cols\":[\"Variable\",\"x\",\"value\"],\"column_source\":{\"id\":\"6710\",\"type\":\"ColumnDataSource\"},\"kind\":\"ColumnDataChanged\",\"new\":{\"Variable\":[\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\"],\"value\":{\"__ndarray__\":\"ZmZmZmZmPkCPe3qSauY9QGpevj1obT1AKy0ta1XyPEA48Xgc+Hc8QOsLPrCE/TtAADmvjkODO0D8I2/LKQk7QM7keLBFjzpAMgj9+50VOkC9i3DFO5w5QH5f0oMnIzlAer8q9WmqOEDof3HaCzI4QO7LUg0WujdAPs+PepFCN0Bnpzkkh8s2QCN2KyEAVTZAHjPunAXfNUA10w/XoGk1QPSkNCLb9DRAPXrL4r2ANEARBWqNUg00QIjdzqSimjNAgquJt7coM0BAsUldm7cyQACu0zNXRzJA/H+g2/TXMUDBcSb0fWkxQHmczxf8+zBAYkag13iPMEC/oJC2/SMwQNSFO0kocy9AG3Is84qgLkBs6E3fNdAtQAW+Wzs7Ai1AQJyv4qw2LEBZ7B9SnG0rQJECj5sapypA9Zs4WTjjKUAPncygBSIpQJbXZvaRYyhAoHF0P+ynJ0BqWJi1Iu8mQJX0oNlCOSZAphqiZlmGJUDY8UZFctYkQFJBcH+YKSRA/T80NNZ/I0ABo1WMNNkiQN42SK+7NSJAa83ZuHKVIUBCsZavX/ggQHscAXyHXiBAXrVmwduPH0CuiwjnKmkeQOJEiy//SB1ATgpn81gvHEAAm1YWNhwbQDS9fwOSDxpA8Ap/rGUJGUAyxXyLpwkYQNlFbKhLEBdATY6SoUMdFkALL2q3fjAVQP8i89vpSRRA2gV0xW9pE0BH/KYE+Y4SQJ1mPx5suhFAX5mlp63rEEAQ3rJmoCIQQCxwQuhKvg5A/h6OwDhCDUBK3iuzxtALQFOYV6iuaQpAf/EsY6gMCUCiKV/PabkHQHSuZkqnbwZALObK5BMvBUBKlXyXYfcDQDe3d2hByAJAYWEueWOhAUAoXbf4doIAQDnYSOdT1v4/dRtN+FG2/D9wK7xOPaT6P9sMcsJln/g/q8QtQBSn9j9/M5Qaibr0PxzUj4362PI/dbtD2pMB8T/tinff6mbuPwmCIgRt2+o/mXLSbtBe5z8fQut2NO/jPxqmcmfAiuA/rP0QYl1f2j+JCYXJrbjTP+P7US/VPMo/sJ2cy3s3uj+Gde78sb8yPw==\",\"dtype\":\"float64\",\"shape\":[101]},\"x\":[0,100,200,300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,1600,1700,1800,1900,2000,2100,2200,2300,2400,2500,2600,2700,2800,2900,3000,3100,3200,3300,3400,3500,3600,3700,3800,3900,4000,4100,4200,4300,4400,4500,4600,4700,4800,4900,5000,5100,5200,5300,5400,5500,5600,5700,5800,5900,6000,6100,6200,6300,6400,6500,6600,6700,6800,6900,7000,7100,7200,7300,7400,7500,7600,7700,7800,7900,8000,8100,8200,8300,8400,8500,8600,8700,8800,8900,9000,9100,9200,9300,9400,9500,9600,9700,9800,9900,10000]}},{\"cols\":[\"Variable\",\"x\",\"value\"],\"column_source\":{\"id\":\"6797\",\"type\":\"ColumnDataSource\"},\"kind\":\"ColumnDataChanged\",\"new\":{\"Variable\":[\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\"],\"value\":{\"__ndarray__\":\"ZmZmZmZmP0BmZmZmZuY+QGZmZmZmZj5AZmZmZmbmPUBmZmZmZmY9QGZmZmZm5jxAZmZmZmZmPEBmZmZmZuY7QGZmZmZmZjtAZmZmZmbmOkBmZmZmZmY6QGZmZmZm5jlAZmZmZmZmOUBmZmZmZuY4QGZmZmZmZjhAZmZmZmbmN0BmZmZmZmY3QGZmZmZm5jZAZmZmZmZmNkBmZmZmZuY1QGZmZmZmZjVAZmZmZmbmNEBmZmZmZmY0QGZmZmZm5jNAZmZmZmZmM0BmZmZmZuYyQGdmZmZmZjJAamZmZmbmMUB1ZmZmZmYxQKBmZmZm5jBAQmdmZmZmMEBH08zMzMwvQDjlzMzMzC5A2yjNzMzMLUDGJ87MzMwsQJ3o0czMzCtAJg7gzMzMKkBEYBXNzMwpQJZZ3s3MzChAvNnT0MzMJ0Bq+/rbzMwmQBBiBAbNzCVANnt1pM3MJEAaE6P5z8wjQCuHT8TYzCJA4SDi5PnMIUC0mjqdds0gQJoep2mVnh9AMsoWlSasHUBYsqobc9wbQAmyzFNccxpA+/x6sGbKGUBNrXe3GK8ZQLOKAI1ZSBlAbyc4zPPhGEAN4i1kjXsYQM4BUv0mFRhAXEtllsCuF0DXrmgvWkgXQEamWsjz4RZA1ZU5YY17FkD0xgP6JhUWQBdot5LArhVA14xSK1pIFUBULtPD8+EUQBEsN1yNexRASE189CYVFEDaQqCMwK4TQOOpoCRaSBNAJw97vPPhEkBm8yxUjXsSQL3Qs+smFRJARyENg8CuEUAmZzYaWkgRQB02LbHz4RBAAT/vR417EEBEXXreJhUQQH5NmemAXQ9AafzIFbSQDkBvUYFB58MNQN3MwGwa9wxACx6Hl00qDECcZNXBgF0LQPN6ruuzkApA6koXFefDCUD3LRc+GvcIQPtZuGZNKghA51sIj4BdB0DgoRi3s5AGQDsW/97mwwVAGs3WBhr3BEBSxsAuTSoEQLfF5FaAXQNAiUNyf7OQAkB8d6Go5sMBQGGAtNIZ9wBAEKv4/UwqAEDntY9VALv+P/ItFLNmIf0/TntuFc2H+z86lmV9M+75Pw==\",\"dtype\":\"float64\",\"shape\":[101]},\"x\":[0,100,200,300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,1600,1700,1800,1900,2000,2100,2200,2300,2400,2500,2600,2700,2800,2900,3000,3100,3200,3300,3400,3500,3600,3700,3800,3900,4000,4100,4200,4300,4400,4500,4600,4700,4800,4900,5000,5100,5200,5300,5400,5500,5600,5700,5800,5900,6000,6100,6200,6300,6400,6500,6600,6700,6800,6900,7000,7100,7200,7300,7400,7500,7600,7700,7800,7900,8000,8100,8200,8300,8400,8500,8600,8700,8800,8900,9000,9100,9200,9300,9400,9500,9600,9700,9800,9900,10000]}},{\"cols\":[\"Variable\",\"x\",\"value\"],\"column_source\":{\"id\":\"6816\",\"type\":\"ColumnDataSource\"},\"kind\":\"ColumnDataChanged\",\"new\":{\"Variable\":[\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\"],\"value\":{\"__ndarray__\":\"ZmZmZmZmPkBmZmZmZuY9QGZmZmZmZj1AZmZmZmbmPEBmZmZmZmY8QGZmZmZm5jtAZmZmZmZmO0BmZmZmZuY6QGZmZmZmZjpAZmZmZmbmOUBmZmZmZmY5QGZmZmZm5jhAZmZmZmZmOEBmZmZmZuY3QGZmZmZmZjdAZmZmZmbmNkBmZmZmZmY2QGZmZmZm5jVAZmZmZmZmNUBmZmZmZuY0QGZmZmZmZjRAZmZmZmbmM0BmZmZmZmYzQGZmZmZm5jJAZmZmZmZmMkBmZmZmZuYxQGZmZmZmZjFAZmZmZmbmMEBmZmZmZmYwQMzMzMzMzC9AzMzMzMzMLkDOzMzMzMwtQNLMzMzMzCxA5MzMzMzMK0AlzczMzMwqQBzOzMzMzClAvtHMzMzMKEBx38zMzMwnQBETzczMzCZAptXNzMzMJUAOs9DMzMwkQFx/28zMzCNAJDIEzczMIkDrk53NzMwhQGN338/MzCBATq28sJmZH0Cn2WrwmZkdQM77YduamRtAIrWQDZ6ZGUAte4oap5kXQFYmsu+zmRVAlfbdvK+ZE0CXGl1GNTMTQM5ss8rMzBJA4V1qZmZmEkBt9/////8RQICYmZmZmRFA9jEzMzMzEUB7y8zMzMwQQP9kZmZmZhBABf3/////D0AMMDMzMzMPQBRjZmZmZg5AHJaZmZmZDUAnyczMzMwMQDX8/////wtASC8zMzMzC0BfYmZmZmYKQH6VmZmZmQlApsjMzMzMCEDZ+/////8HQBkvMzMzMwdAaWJmZmZmBkDLlZmZmZkFQETJzMzMzARA1/z/////A0CIMDMzMzMDQF1kZmZmZgJAWpiZmZmZAUCGzMzMzMwAQOgAAAAAAABADmtmZmZm/j/Y1MzMzMz8P0A/MzMzM/s/WqqZmZmZ+T8/FgAAAAD4PweDZmZmZvY/zvDMzMzM9D+zXzMzMzPzP9jPmZmZmfE/YUEAAAAA8D/raM3MzMzsP4RSmpmZmek/6z9nZmZm5j+GMTQzMzPjP8UnAQAAAOA/QEacmZmZ2T8uSDYzMzPTP9KsoJmZmck/bMipmZmZuT8BAADoEPhjPQ==\",\"dtype\":\"float64\",\"shape\":[101]},\"x\":[0,100,200,300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,1600,1700,1800,1900,2000,2100,2200,2300,2400,2500,2600,2700,2800,2900,3000,3100,3200,3300,3400,3500,3600,3700,3800,3900,4000,4100,4200,4300,4400,4500,4600,4700,4800,4900,5000,5100,5200,5300,5400,5500,5600,5700,5800,5900,6000,6100,6200,6300,6400,6500,6600,6700,6800,6900,7000,7100,7200,7300,7400,7500,7600,7700,7800,7900,8000,8100,8200,8300,8400,8500,8600,8700,8800,8900,9000,9100,9200,9300,9400,9500,9600,9700,9800,9900,10000]}},{\"attr\":\"text\",\"kind\":\"ModelChanged\",\"model\":{\"id\":\"6660\",\"type\":\"Title\"},\"new\":\"t: 1200\"}],\"references\":[]},\"root\":\"6659\"}", "3": "{\"content\":{\"events\":[{\"attr\":\"end\",\"kind\":\"ModelChanged\",\"model\":{\"id\":\"6654\",\"type\":\"Range1d\"},\"new\":31.42772809582972},{\"attr\":\"reset_end\",\"kind\":\"ModelChanged\",\"model\":{\"id\":\"6654\",\"type\":\"Range1d\"},\"new\":31.42772809582972},{\"cols\":[\"Variable\",\"x\",\"value\"],\"column_source\":{\"id\":\"6694\",\"type\":\"ColumnDataSource\"},\"kind\":\"ColumnDataChanged\",\"new\":{\"Variable\":[\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\"],\"value\":{\"__ndarray__\":\"RCunln9tP0Ao2+c2iO0+QOqs2Sn/ez5AGRL9mD4GPkAnxPSX25E9QEGU/Y44HT1AfKgqONuoPEDo2YnCpjQ8QK103ZquwDtATVrS2fdMO0AZJbzTi9k6QGkY8ZZyZjpAcUK/jLTzOUDGuij9WYE5QGeGvzJrDzlAbb0Pb/CdOEDhPvXs8Sw4QDcQvN53vDdA4E1jbYpMN0DPtm63Md02QLHXvM91bjZAEoE+vF4ANkBRY5l09JI1QOaVsuA+JjVArM0h10W6NED2BY0bEU80QInV7Fyo5DNAq7G5MxN7M0CRiQIgWRIzQAlEbYeBqjJAb8ohs5NDMkDRbKDNlt0xQEmLhOCReDFATpA00osUMUDmZoBji7EwQP61Ly2XTzBALI8CO2vdL0CcPjrr2R0vQNu99Y2GYC5A2GR84XylLUAPKxY6yOwsQJK5p3xzNixA5ANGGYmCK0Cqj8UFE9EqQDi4SbgaIipAZFvYIal1KUAPefaoxssoQJNlUiR7JChAVkCA1c1/J0D6a81jxd0mQEbJL9dnPiZAgHRVk7qhJUBrutlSwgclQL7noyKDcCRAs3p0XQDcI0AYGaWnPEojQNR9H+s5uyJAPlePU/kuIkCAyNJKe6UhQKPvrHW/HiFA6HK9sMSaIEDSrL8NiRkgQH4sJ6ITNh9AGBIk34Y+HkAMyFoZY0wdQCT4vfGdXxxAiD3CYCt4G0CZdGm0/ZUaQFoR4o4FuRlAPsW15THhGEDNToEBcA4YQNDsLX6rQBdAn6qjS853FkD8pOquwLMVQL6SsENp9BRAGmYn/qw5FEAX3TEtb4MTQOV303yR0RJAxK3a+PMjEkCrjL4PdXoRQMJcrJXx1BBAmpnGx0QzEEBbeDmfkCoPQPgR1o2o9Q1Aqsh1d37HDEA09A1qvJ8LQPgDJXAJfgpA4gdfnQliCUCInXgdXksIQPD3VUalOQdA8ibarXosBkAizz1EdyMFQN4aj3MxHgRAtrThRD0cA0BL7XiLLB0CQBbk3RWPIAFABJJh5PIlAEB8PwzIyFn+P2O5gljdafw/P18dezd7+j+xvoF96Yz4Pw==\",\"dtype\":\"float64\",\"shape\":[101]},\"x\":[0,100,200,300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,1600,1700,1800,1900,2000,2100,2200,2300,2400,2500,2600,2700,2800,2900,3000,3100,3200,3300,3400,3500,3600,3700,3800,3900,4000,4100,4200,4300,4400,4500,4600,4700,4800,4900,5000,5100,5200,5300,5400,5500,5600,5700,5800,5900,6000,6100,6200,6300,6400,6500,6600,6700,6800,6900,7000,7100,7200,7300,7400,7500,7600,7700,7800,7900,8000,8100,8200,8300,8400,8500,8600,8700,8800,8900,9000,9100,9200,9300,9400,9500,9600,9700,9800,9900,10000]}},{\"cols\":[\"Variable\",\"x\",\"value\"],\"column_source\":{\"id\":\"6710\",\"type\":\"ColumnDataSource\"},\"kind\":\"ColumnDataChanged\",\"new\":{\"Variable\":[\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\"],\"value\":{\"__ndarray__\":\"ZmZmZmZmPkBKFqcGb+Y9QPVBQKnedD1AN1u6jRH/PECg6rYrnIo8QNLoKRPhFTxAcdYe7GWhO0CFBlDiDS07QJxkNFnsuDpAhPoaYAZFOkBeljtAZdE5QOL3jfsQXjlAHC2e7RHrOEA+XFRPcHg4QI/hz1o0BjhAaFXUP2aUN0D1SyEmDiM3QM8vlSs0sjZAWcZyY+BBNkBohDXVGtI1QBm2anvrYjVACy1sQlr0NEC+VgYHb4Y0QLqJBpUxGTRApFeypamsM0B8tCfe3kAzQIA6ps3Y1TJAmt3B655rMkDBi3+WOAIyQBdaXBCtmTFAvwJAfgMyMUB5m1vlQsswQPiQ9ShyZTBAjxYkCJgAMECwuu42djkvQIUSKqXDcy5A7/mM4ySwLUDNcPcepu4sQAhOiSNTLyxAXrmFVzdyK0DgwCu2XbcqQHGIiMrQ/ilARNBHqppIKUAky4fwxJQoQAZ4tbhY4ydAOOp2mV40J0A5Iamf3ocmQCpEd0ng3SVAGEORgWo2JUAUDoiag5EkQN63VUox7yNAOP4XpnhPI0BmzwMeXrIiQPx7mHnlFyJARlUZ1BGAIUAgglSZ5eogQO/SvYJiWCBAQKvIKRORH0AUpJI6tnYeQGxpPmGtYR1AnXTtUvZRHECSzcBOjUcbQPvuDx1tQhpAdBOeD49CGUBMNdcC60cYQIicHGB3UhdAyBInISliFkAjrYLU83YVQGuAJaPJkBRAHWsfV5uvE0CcVF1jWNMSQL+0dezu+xFAaclu0kspEUAMcWi7WlsQQHQOGD4MJA9A2n03pW6aDUCpRuEqrRkMQBAqVTuWoQpAOGiQSfYxCUDVnJvnl8oHQCqWJN1DawZA+09wO8ETBUDsZ49t1cMDQD7in0NEewJAIFPN9885AUCRJGJXcv7/PyPWabl9lv0/ocxlnDw7+z/qqYjQJez4Pwp/IhWsqPY/oFL9pT1w9D9NgbKxQ0LyP67eEbwhHvA/B56142kG7D9oSZnqpuHnPx1MZFqXzOM/YC6sho6L3z/YycjKYZfXP11q8J7vcs8/LX4zbue5vz81di8fs3ppPw==\",\"dtype\":\"float64\",\"shape\":[101]},\"x\":[0,100,200,300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,1600,1700,1800,1900,2000,2100,2200,2300,2400,2500,2600,2700,2800,2900,3000,3100,3200,3300,3400,3500,3600,3700,3800,3900,4000,4100,4200,4300,4400,4500,4600,4700,4800,4900,5000,5100,5200,5300,5400,5500,5600,5700,5800,5900,6000,6100,6200,6300,6400,6500,6600,6700,6800,6900,7000,7100,7200,7300,7400,7500,7600,7700,7800,7900,8000,8100,8200,8300,8400,8500,8600,8700,8800,8900,9000,9100,9200,9300,9400,9500,9600,9700,9800,9900,10000]}},{\"cols\":[\"Variable\",\"x\",\"value\"],\"column_source\":{\"id\":\"6797\",\"type\":\"ColumnDataSource\"},\"kind\":\"ColumnDataChanged\",\"new\":{\"Variable\":[\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\"],\"value\":{\"__ndarray__\":\"ZmZmZmZmP0BmZmZmZuY+QGZmZmZmZj5AZmZmZmbmPUBmZmZmZmY9QGZmZmZm5jxAZmZmZmZmPEBmZmZmZuY7QGZmZmZmZjtAZmZmZmbmOkBmZmZmZmY6QGZmZmZm5jlAZmZmZmZmOUBmZmZmZuY4QGZmZmZmZjhAZmZmZmbmN0BmZmZmZmY3QGZmZmZm5jZAZmZmZmZmNkBmZmZmZuY1QGZmZmZmZjVAZmZmZmbmNEBmZmZmZmY0QGZmZmZm5jNAZmZmZmZmM0BmZmZmZuYyQGdmZmZmZjJAamZmZmbmMUB1ZmZmZmYxQKBmZmZm5jBAQmdmZmZmMEBH08zMzMwvQDjlzMzMzC5A2yjNzMzMLUDGJ87MzMwsQJ3o0czMzCtAJg7gzMzMKkBEYBXNzMwpQJZZ3s3MzChAvNnT0MzMJ0Bq+/rbzMwmQBBiBAbNzCVANnt1pM3MJEAaE6P5z8wjQCuHT8TYzCJA4SDi5PnMIUC0mjqdds0gQJoep2mVnh9AMsoWlSasHUBYsqobc9wbQAmyzFNccxpA+/x6sGbKGUBNrXe3GK8ZQLOKAI1ZSBlAbyc4zPPhGEAN4i1kjXsYQM4BUv0mFRhAXEtllsCuF0DXrmgvWkgXQEamWsjz4RZA1ZU5YY17FkD0xgP6JhUWQBdot5LArhVA14xSK1pIFUBULtPD8+EUQBEsN1yNexRASE189CYVFEDaQqCMwK4TQOOpoCRaSBNAJw97vPPhEkBm8yxUjXsSQL3Qs+smFRJARyENg8CuEUAmZzYaWkgRQB02LbHz4RBAAT/vR417EEBEXXreJhUQQH5NmemAXQ9AafzIFbSQDkBvUYFB58MNQN3MwGwa9wxACx6Hl00qDECcZNXBgF0LQPN6ruuzkApA6koXFefDCUD3LRc+GvcIQPtZuGZNKghA51sIj4BdB0DgoRi3s5AGQDsW/97mwwVAGs3WBhr3BEBSxsAuTSoEQLfF5FaAXQNAiUNyf7OQAkB8d6Go5sMBQGGAtNIZ9wBAEKv4/UwqAEDntY9VALv+P/ItFLNmIf0/TntuFc2H+z86lmV9M+75Pw==\",\"dtype\":\"float64\",\"shape\":[101]},\"x\":[0,100,200,300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,1600,1700,1800,1900,2000,2100,2200,2300,2400,2500,2600,2700,2800,2900,3000,3100,3200,3300,3400,3500,3600,3700,3800,3900,4000,4100,4200,4300,4400,4500,4600,4700,4800,4900,5000,5100,5200,5300,5400,5500,5600,5700,5800,5900,6000,6100,6200,6300,6400,6500,6600,6700,6800,6900,7000,7100,7200,7300,7400,7500,7600,7700,7800,7900,8000,8100,8200,8300,8400,8500,8600,8700,8800,8900,9000,9100,9200,9300,9400,9500,9600,9700,9800,9900,10000]}},{\"cols\":[\"Variable\",\"x\",\"value\"],\"column_source\":{\"id\":\"6816\",\"type\":\"ColumnDataSource\"},\"kind\":\"ColumnDataChanged\",\"new\":{\"Variable\":[\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\"],\"value\":{\"__ndarray__\":\"ZmZmZmZmPkBmZmZmZuY9QGZmZmZmZj1AZmZmZmbmPEBmZmZmZmY8QGZmZmZm5jtAZmZmZmZmO0BmZmZmZuY6QGZmZmZmZjpAZmZmZmbmOUBmZmZmZmY5QGZmZmZm5jhAZmZmZmZmOEBmZmZmZuY3QGZmZmZmZjdAZmZmZmbmNkBmZmZmZmY2QGZmZmZm5jVAZmZmZmZmNUBmZmZmZuY0QGZmZmZmZjRAZmZmZmbmM0BmZmZmZmYzQGZmZmZm5jJAZmZmZmZmMkBmZmZmZuYxQGZmZmZmZjFAZmZmZmbmMEBmZmZmZmYwQMzMzMzMzC9AzMzMzMzMLkDOzMzMzMwtQNLMzMzMzCxA5MzMzMzMK0AlzczMzMwqQBzOzMzMzClAvtHMzMzMKEBx38zMzMwnQBETzczMzCZAptXNzMzMJUAOs9DMzMwkQFx/28zMzCNAJDIEzczMIkDrk53NzMwhQGN338/MzCBATq28sJmZH0Cn2WrwmZkdQM77YduamRtAIrWQDZ6ZGUAte4oap5kXQFYmsu+zmRVAlfbdvK+ZE0CXGl1GNTMTQM5ss8rMzBJA4V1qZmZmEkBt9/////8RQICYmZmZmRFA9jEzMzMzEUB7y8zMzMwQQP9kZmZmZhBABf3/////D0AMMDMzMzMPQBRjZmZmZg5AHJaZmZmZDUAnyczMzMwMQDX8/////wtASC8zMzMzC0BfYmZmZmYKQH6VmZmZmQlApsjMzMzMCEDZ+/////8HQBkvMzMzMwdAaWJmZmZmBkDLlZmZmZkFQETJzMzMzARA1/z/////A0CIMDMzMzMDQF1kZmZmZgJAWpiZmZmZAUCGzMzMzMwAQOgAAAAAAABADmtmZmZm/j/Y1MzMzMz8P0A/MzMzM/s/WqqZmZmZ+T8/FgAAAAD4PweDZmZmZvY/zvDMzMzM9D+zXzMzMzPzP9jPmZmZmfE/YUEAAAAA8D/raM3MzMzsP4RSmpmZmek/6z9nZmZm5j+GMTQzMzPjP8UnAQAAAOA/QEacmZmZ2T8uSDYzMzPTP9KsoJmZmck/bMipmZmZuT8BAADoEPhjPQ==\",\"dtype\":\"float64\",\"shape\":[101]},\"x\":[0,100,200,300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,1600,1700,1800,1900,2000,2100,2200,2300,2400,2500,2600,2700,2800,2900,3000,3100,3200,3300,3400,3500,3600,3700,3800,3900,4000,4100,4200,4300,4400,4500,4600,4700,4800,4900,5000,5100,5200,5300,5400,5500,5600,5700,5800,5900,6000,6100,6200,6300,6400,6500,6600,6700,6800,6900,7000,7100,7200,7300,7400,7500,7600,7700,7800,7900,8000,8100,8200,8300,8400,8500,8600,8700,8800,8900,9000,9100,9200,9300,9400,9500,9600,9700,9800,9900,10000]}},{\"attr\":\"text\",\"kind\":\"ModelChanged\",\"model\":{\"id\":\"6660\",\"type\":\"Title\"},\"new\":\"t: 1800\"}],\"references\":[]},\"root\":\"6659\"}", "4": "{\"content\":{\"events\":[{\"attr\":\"end\",\"kind\":\"ModelChanged\",\"model\":{\"id\":\"6654\",\"type\":\"Range1d\"},\"new\":31.442187211048893},{\"attr\":\"reset_end\",\"kind\":\"ModelChanged\",\"model\":{\"id\":\"6654\",\"type\":\"Range1d\"},\"new\":31.442187211048893},{\"cols\":[\"Variable\",\"x\",\"value\"],\"column_source\":{\"id\":\"6694\",\"type\":\"ColumnDataSource\"},\"kind\":\"ColumnDataChanged\",\"new\":{\"Variable\":[\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\"],\"value\":{\"__ndarray__\":\"GSpaLjNxP0DUwfbmP/E+QIDil0eFhj5AKzeop6gVPkCt2fwxsKY9QBJeevtNNz1A+m2o6zfIPEC8EXOiQlk8QAVIJnOE6jtAQ7bLfwB8O0DCTVR5vw07QNOJvGfInzpA7XYJwyIyOkDPUcLV1cQ5QDJ5fOnoVzlAz4ahOGPrOECT10DxS384QPEa6DKqEzhAlm/lDYWoN0D2NBmC4z03QDpk4H3M0zZAaq3v3EZqNkD+oCpnWQE2QM6Ac88KmTVApZh0smExNUAA0GKVZMo0QCKJueQZZDRALdHv8of+M0CU9Sb3tJkzQDqa0gunNTNAWXVaLWTSMkA/37U48m8yQM1sAepWDjJAmdQO25etMUCmZu+Buk0xQMpneS/E7jBAxKjIDbqQMEC6uboeoTMwQMtCznT8ri9AqwwoG6z4LkBOfk8wWkQuQHOIL1cPki1AogWr0tPhLECuLHOCrzMsQIjg29+phytAVvWu+sndKkDzh/91FjYqQEqI/oSVkClA2pjR50ztKEDnZW3oQUwoQNmUdFd5rSdA+2gcifcQJ0AqNBhSwHYmQCujjATX3iVAWusLbT5JJUDw0pvP+LUkQNN/xuQHJSRAoOi21myWI0B0sWE+KAojQEYruyA6gCJA+BX766H4IUBwsO50XnMhQDiJWfRt8CBAOmtlBM5vIECGVEM89+IfQBz4Iy7m6h5AjeyZPWD3HUCkb1R5WwgdQGVuAJvMHRxALlDjAqc3G0AK2pSz3FUaQAos2E1eeBlAUhCUDBufGEB4LevAAMoXQFkydc77+BZAmsyaJ/crFkAVNxdK3GIVQAx3ozuTnRRAzQPRhgLcE0CMpBs4Dx4TQN7YPNucYxJASDPOeI2sEUDMtUuUwfgQQOmKiyoYSBBAgMqKYd00D0ALyJIoQt8NQPMDGXYTjwxAimJuCgNEC0B6TtOfv/0JQD5j4PL0uwhAsKxQzkt+B0Cn4rkaakQGQL++xvLyDQVAhaGKvIbaA0AHqIJIw6kCQKWLzfZDewFAyd8P46FOAEAIL7ku6Eb+Pw7wo4yf8vs/CsbTGJGf+T/5ISJx4Uz3Pw==\",\"dtype\":\"float64\",\"shape\":[101]},\"x\":[0,100,200,300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,1600,1700,1800,1900,2000,2100,2200,2300,2400,2500,2600,2700,2800,2900,3000,3100,3200,3300,3400,3500,3600,3700,3800,3900,4000,4100,4200,4300,4400,4500,4600,4700,4800,4900,5000,5100,5200,5300,5400,5500,5600,5700,5800,5900,6000,6100,6200,6300,6400,6500,6600,6700,6800,6900,7000,7100,7200,7300,7400,7500,7600,7700,7800,7900,8000,8100,8200,8300,8400,8500,8600,8700,8800,8900,9000,9100,9200,9300,9400,9500,9600,9700,9800,9900,10000]}},{\"cols\":[\"Variable\",\"x\",\"value\"],\"column_source\":{\"id\":\"6710\",\"type\":\"ColumnDataSource\"},\"kind\":\"ColumnDataChanged\",\"new\":{\"Variable\":[\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\"],\"value\":{\"__ndarray__\":\"ZmZmZmZmPkAh/gIfc+Y9QNPhPpSxez1ALknEA8kKPUBJdDcRv5s8QIXty/NFLDxADm/9hRO9O0BVTYpm/E07QHcvVuMW3zpANXkiGWZwOkCSKI2y8gE6QOeQhbDDkzlAPBQ1g+AlOUAALn9sULg4QCQEjawaSzhAjA2Vc0beN0Dz3q3k2nE3QClKqBPfBTdAaDhTBFqaNkCLdU+pUi82QOND/OLPxDVAqf1UfthaNUDzFMszc/E0QBkXGaamiDRAtJ4PYXkgNEAe8lvY8bgzQFhwSGYWUjNAK992Su3rMkDmv5SofIYyQMHYCYfKITJA8iyhzdy9MUCJqCxEuVoxQJnQI5Fl+DBA3tM9OOeWMED6YgeZQzYwQPmH6dr/rC9Abj7hkELvLkD6H9AoWTMuQO8dqSNNeS1AKq6IqyfBLEAR5MOQ8QosQGlI90azVitAo/YW4nSkKkDAnIETPvQpQHoQGCcWRilAYUJbAASaKECtbJIXDvAnQJhw+3Y6SCdAt2gHuI6iJkChiqUAEP8lQGOEngDDXSVAppQC76u+JEDkqqyHziEkQKTs3AguhyNAXwntMM3uIkBCzyA8rlgiQK16leLSxCFAHj1SVjwzIUC4dHxB66MgQOQHssTfFiBAKIwY6zIYH0D3MZu6LgceQMpXeO+v+hxAoP1WZLLyG0C2M23VMO8aQHKAWN8k8BlAti1c/ob1GECeVQaOTv8XQEY6O8lxDRdAINakyuUfFkBRpYKNnjYVQPJU0+6OURRArEPPrqhwE0AOiKdy3JMSQHl2ecYZuxFAaF9iH0/mEEBZeJrdaRUQQM438ZyskA5A5bl1XP/9DEAs4tNSoHILQHbVTrth7glARNxhsxNxCEAHzro4hPoGQAOwqiR/igVA/LWKJM4gBEAeX5WuOL0CQDuBvPKDXwFAh+QXx3IHAEAE1E0fi2n9P6RYmUJ0zvo/sKtVQBc9+D/8vJmz5LT1P6cp5jdHNfM/+/lwEqO98D8uuQ61q5rsPzI8qUpsx+c/kNR7dCYA4z9o3vBW04bcP7OnWgRsH9M/tGrsK/CNwz+Qh4BLZJB+Pw==\",\"dtype\":\"float64\",\"shape\":[101]},\"x\":[0,100,200,300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,1600,1700,1800,1900,2000,2100,2200,2300,2400,2500,2600,2700,2800,2900,3000,3100,3200,3300,3400,3500,3600,3700,3800,3900,4000,4100,4200,4300,4400,4500,4600,4700,4800,4900,5000,5100,5200,5300,5400,5500,5600,5700,5800,5900,6000,6100,6200,6300,6400,6500,6600,6700,6800,6900,7000,7100,7200,7300,7400,7500,7600,7700,7800,7900,8000,8100,8200,8300,8400,8500,8600,8700,8800,8900,9000,9100,9200,9300,9400,9500,9600,9700,9800,9900,10000]}},{\"cols\":[\"Variable\",\"x\",\"value\"],\"column_source\":{\"id\":\"6797\",\"type\":\"ColumnDataSource\"},\"kind\":\"ColumnDataChanged\",\"new\":{\"Variable\":[\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\"],\"value\":{\"__ndarray__\":\"ZmZmZmZmP0BmZmZmZuY+QGZmZmZmZj5AZmZmZmbmPUBmZmZmZmY9QGZmZmZm5jxAZmZmZmZmPEBmZmZmZuY7QGZmZmZmZjtAZmZmZmbmOkBmZmZmZmY6QGZmZmZm5jlAZmZmZmZmOUBmZmZmZuY4QGZmZmZmZjhAZmZmZmbmN0BmZmZmZmY3QGZmZmZm5jZAZmZmZmZmNkBmZmZmZuY1QGZmZmZmZjVAZmZmZmbmNEBmZmZmZmY0QGZmZmZm5jNAZmZmZmZmM0BmZmZmZuYyQGdmZmZmZjJAamZmZmbmMUB1ZmZmZmYxQKBmZmZm5jBAQmdmZmZmMEBH08zMzMwvQDjlzMzMzC5A2yjNzMzMLUDGJ87MzMwsQJ3o0czMzCtAJg7gzMzMKkBEYBXNzMwpQJZZ3s3MzChAvNnT0MzMJ0Bq+/rbzMwmQBBiBAbNzCVANnt1pM3MJEAaE6P5z8wjQCuHT8TYzCJA4SDi5PnMIUC0mjqdds0gQJoep2mVnh9AMsoWlSasHUBYsqobc9wbQAmyzFNccxpA+/x6sGbKGUBNrXe3GK8ZQLOKAI1ZSBlAbyc4zPPhGEAN4i1kjXsYQM4BUv0mFRhAXEtllsCuF0DXrmgvWkgXQEamWsjz4RZA1ZU5YY17FkD0xgP6JhUWQBdot5LArhVA14xSK1pIFUBULtPD8+EUQBEsN1yNexRASE189CYVFEDaQqCMwK4TQOOpoCRaSBNAJw97vPPhEkBm8yxUjXsSQL3Qs+smFRJARyENg8CuEUAmZzYaWkgRQB02LbHz4RBAAT/vR417EEBEXXreJhUQQH5NmemAXQ9AafzIFbSQDkBvUYFB58MNQN3MwGwa9wxACx6Hl00qDECcZNXBgF0LQPN6ruuzkApA6koXFefDCUD3LRc+GvcIQPtZuGZNKghA51sIj4BdB0DgoRi3s5AGQDsW/97mwwVAGs3WBhr3BEBSxsAuTSoEQLfF5FaAXQNAiUNyf7OQAkB8d6Go5sMBQGGAtNIZ9wBAEKv4/UwqAEDntY9VALv+P/ItFLNmIf0/TntuFc2H+z86lmV9M+75Pw==\",\"dtype\":\"float64\",\"shape\":[101]},\"x\":[0,100,200,300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,1600,1700,1800,1900,2000,2100,2200,2300,2400,2500,2600,2700,2800,2900,3000,3100,3200,3300,3400,3500,3600,3700,3800,3900,4000,4100,4200,4300,4400,4500,4600,4700,4800,4900,5000,5100,5200,5300,5400,5500,5600,5700,5800,5900,6000,6100,6200,6300,6400,6500,6600,6700,6800,6900,7000,7100,7200,7300,7400,7500,7600,7700,7800,7900,8000,8100,8200,8300,8400,8500,8600,8700,8800,8900,9000,9100,9200,9300,9400,9500,9600,9700,9800,9900,10000]}},{\"cols\":[\"Variable\",\"x\",\"value\"],\"column_source\":{\"id\":\"6816\",\"type\":\"ColumnDataSource\"},\"kind\":\"ColumnDataChanged\",\"new\":{\"Variable\":[\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\"],\"value\":{\"__ndarray__\":\"ZmZmZmZmPkBmZmZmZuY9QGZmZmZmZj1AZmZmZmbmPEBmZmZmZmY8QGZmZmZm5jtAZmZmZmZmO0BmZmZmZuY6QGZmZmZmZjpAZmZmZmbmOUBmZmZmZmY5QGZmZmZm5jhAZmZmZmZmOEBmZmZmZuY3QGZmZmZmZjdAZmZmZmbmNkBmZmZmZmY2QGZmZmZm5jVAZmZmZmZmNUBmZmZmZuY0QGZmZmZmZjRAZmZmZmbmM0BmZmZmZmYzQGZmZmZm5jJAZmZmZmZmMkBmZmZmZuYxQGZmZmZmZjFAZmZmZmbmMEBmZmZmZmYwQMzMzMzMzC9AzMzMzMzMLkDOzMzMzMwtQNLMzMzMzCxA5MzMzMzMK0AlzczMzMwqQBzOzMzMzClAvtHMzMzMKEBx38zMzMwnQBETzczMzCZAptXNzMzMJUAOs9DMzMwkQFx/28zMzCNAJDIEzczMIkDrk53NzMwhQGN338/MzCBATq28sJmZH0Cn2WrwmZkdQM77YduamRtAIrWQDZ6ZGUAte4oap5kXQFYmsu+zmRVAlfbdvK+ZE0CXGl1GNTMTQM5ss8rMzBJA4V1qZmZmEkBt9/////8RQICYmZmZmRFA9jEzMzMzEUB7y8zMzMwQQP9kZmZmZhBABf3/////D0AMMDMzMzMPQBRjZmZmZg5AHJaZmZmZDUAnyczMzMwMQDX8/////wtASC8zMzMzC0BfYmZmZmYKQH6VmZmZmQlApsjMzMzMCEDZ+/////8HQBkvMzMzMwdAaWJmZmZmBkDLlZmZmZkFQETJzMzMzARA1/z/////A0CIMDMzMzMDQF1kZmZmZgJAWpiZmZmZAUCGzMzMzMwAQOgAAAAAAABADmtmZmZm/j/Y1MzMzMz8P0A/MzMzM/s/WqqZmZmZ+T8/FgAAAAD4PweDZmZmZvY/zvDMzMzM9D+zXzMzMzPzP9jPmZmZmfE/YUEAAAAA8D/raM3MzMzsP4RSmpmZmek/6z9nZmZm5j+GMTQzMzPjP8UnAQAAAOA/QEacmZmZ2T8uSDYzMzPTP9KsoJmZmck/bMipmZmZuT8BAADoEPhjPQ==\",\"dtype\":\"float64\",\"shape\":[101]},\"x\":[0,100,200,300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,1600,1700,1800,1900,2000,2100,2200,2300,2400,2500,2600,2700,2800,2900,3000,3100,3200,3300,3400,3500,3600,3700,3800,3900,4000,4100,4200,4300,4400,4500,4600,4700,4800,4900,5000,5100,5200,5300,5400,5500,5600,5700,5800,5900,6000,6100,6200,6300,6400,6500,6600,6700,6800,6900,7000,7100,7200,7300,7400,7500,7600,7700,7800,7900,8000,8100,8200,8300,8400,8500,8600,8700,8800,8900,9000,9100,9200,9300,9400,9500,9600,9700,9800,9900,10000]}},{\"attr\":\"text\",\"kind\":\"ModelChanged\",\"model\":{\"id\":\"6660\",\"type\":\"Title\"},\"new\":\"t: 2400\"}],\"references\":[]},\"root\":\"6659\"}", "5": "{\"content\":{\"events\":[{\"attr\":\"end\",\"kind\":\"ModelChanged\",\"model\":{\"id\":\"6654\",\"type\":\"Range1d\"},\"new\":31.455520388077726},{\"attr\":\"reset_end\",\"kind\":\"ModelChanged\",\"model\":{\"id\":\"6654\",\"type\":\"Range1d\"},\"new\":31.455520388077726},{\"cols\":[\"Variable\",\"x\",\"value\"],\"column_source\":{\"id\":\"6694\",\"type\":\"ColumnDataSource\"},\"kind\":\"ColumnDataChanged\",\"new\":{\"Variable\":[\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\"],\"value\":{\"__ndarray__\":\"f3Tx+5x0P0ACKKhCrfQ+QIdf+LjSjz5ARlygTT4jPkB+ReSm+Lg9QDNQYlwoTj1AyZ0WbafjPEBqb+u2P3k8QCzKzzMJDzxAg/UbagWlO0C8hqFHPDs7QDAAdNmz0TpACmSIqnJoOkAu4bEUf/85QLbNgXHfljlA2yYRC5ouOUDXqhsftcY4QOb+3Nw2XzhAaW9qZCX4N0Dqsp3FhpE3QD6lHP9gKzdAigdW/bnFNkDDhH6Zl2A2QF2xipj/+zVAdt8mqveXNUA0eKxnhTQ1QNDhFFOu0TRAzeTp1XdvNECBizNA5w00QEp4Y8cBrTNAF7E9hcxMM0Dj4b52TO0yQKwZAHuGjjJAGQgYUn8wMkA9xPmbO9MxQCUnUde/djFAOMdcYBAbMUB3o8VvMcAwQNiPdBknZjBABXZlS/UMMEBm//CYP2kvQF6DgnZUui5AaQGoGTANLkA6VSIX2WEtQFBB3qtVuCxAoOGEuqsQLEAsPAnJ4GorQMwyM/75xipACBwoH/wkKkAKTfGM64QpQOfhAELM5ihATBW1z6FKKECDfNpbb7AnQCCCLZ43GCdAXX3b3fyBJkAtywPvwO0lQHZUOTCFWyVAL/QEiErLJEAIOmliET0kQKYQaK7ZsCNAgtuK26ImI0BMr23Xa54iQGNaTgszGCJAdgegWfaTIUD2XaQbsxEhQPUhCx9mkSBAvneZowsTIEBQMrSxPi0fQCz2r7c4OB5AiDTKafpGHUCQ0t6qd1kcQG5NzCujbxtAXnhkZ26JGkCsXYmeyaYZQFZCfdSjxxhAdN1ty+rrF0AeDUQBixMXQMWxwqxvPhZAe+cAu4JsFUBgjU3NrJ0UQPTzizfV0RNAoZ8b/+EIE0C6SF/at0ISQKyg+TA6fxFA+dXYHEu+EEAMkljYlv8PQI6RxEg1hw5AU8mbDC4TDUCmhi0nO6MLQFOfLCsUNwpAGXqMS27OCEAwUMhv/GgHQMhv2UtvBgZA8cQbfHWmBEDQQVelu0gDQByXGJns7AFA99pzfrGSAEBwhXD+Y3P+P/9nCvMow/s/BGYua/wT+T/pnJs/J2X2Pw==\",\"dtype\":\"float64\",\"shape\":[101]},\"x\":[0,100,200,300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,1600,1700,1800,1900,2000,2100,2200,2300,2400,2500,2600,2700,2800,2900,3000,3100,3200,3300,3400,3500,3600,3700,3800,3900,4000,4100,4200,4300,4400,4500,4600,4700,4800,4900,5000,5100,5200,5300,5400,5500,5600,5700,5800,5900,6000,6100,6200,6300,6400,6500,6600,6700,6800,6900,7000,7100,7200,7300,7400,7500,7600,7700,7800,7900,8000,8100,8200,8300,8400,8500,8600,8700,8800,8900,9000,9100,9200,9300,9400,9500,9600,9700,9800,9900,10000]}},{\"cols\":[\"Variable\",\"x\",\"value\"],\"column_source\":{\"id\":\"6710\",\"type\":\"ColumnDataSource\"},\"kind\":\"ColumnDataChanged\",\"new\":{\"Variable\":[\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\"],\"value\":{\"__ndarray__\":\"ZmZmZmZmPkDpGR2tduY9QGnNjseVgT1AogMnU/YUPUC/KpeDoKo8QOFF0gy7PzxAiSwz5B/VO0BkbTDnmGo7QFLASgw+ADtAq8WK1hCWOkAmSssvGSw6QHyAsyBdwjlAsRVML+NYOUDXxv+vse84QPFAfPbOhjhAKGZ9RkEeOEDLR+rWDrY3QN1utM89TjdA2gM0SdTmNkAyRBVL2H82QLtCY8tPGTZAqgeIrUCzNUDXWE3BsE01QM/q2sGl6DRA/d6yVCWENECcS6wINSA0QDLi61TavDNAcbXalxpaM0CeKRsW+/cyQCcdfPmAljJAD1vqT7E1MkCFbWAKkdUxQNTq1PskdjFAkFsn2HEXMUAx3QszfLkwQBWp9X5IXDBAMFkBGLb/L0CQx7QNcEgvQFpaVO/Gki5Au6TygcLeLUAyDDY9aiwtQB08KUnFeyxAC6gMfNrMK0B6vilYsB8rQA56qAlNdCpAmAloZLbKKUD0Utvh8SIpQCIh6p4EfShAvtfXWfPYJ0B+kjBwwjYnQNChvdx1liZA6l+CNRH4JUDpYsKpl1slQM8aEgAMwSRAQ+9ylHAoJED893tWx5EjQFZukMcR/SJA/PUk+VBqIkDS2BSLhdkhQNxKCKqvSiFAUr/sDc+9IEDaRID44jIgQMKO4WfUUx9APeYfI8ZFHkBikjjRljsdQFeBPypBNRxAqxXI7b4yG0BsgvjgCDQaQBzHxswWORlAbjVdfN9BGEBmZ6O7WE4XQBZl51V3XhZAiW6hFC9yFUAidku+cokUQE/UQxU0pBNA4iex1mPCEkA5wVu58eMRQA1pb2zMCBFAr/MWluEwEECC5sOjO7gOQCJUyF3ZFA1AgpP8WnF3C0D+iIB51t8JQGZ8rm7ZTQhAAnz4v0jBBkAYybq68DkFQHKzA2ubtwNAKiVikRA6AkAgO+GXFcEAQGFD4QzbmP4/RIYt7rG3+z+X4dQULN74P0LS6LnAC/Y//4Z4/OE/8z9MTsvU/HnwP/Jafh3ycus/Zu3zmnL75T8BS2E1NozgP/SdCw/cR9Y/fHsUNgYFxz8zspEBcbSIPw==\",\"dtype\":\"float64\",\"shape\":[101]},\"x\":[0,100,200,300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,1600,1700,1800,1900,2000,2100,2200,2300,2400,2500,2600,2700,2800,2900,3000,3100,3200,3300,3400,3500,3600,3700,3800,3900,4000,4100,4200,4300,4400,4500,4600,4700,4800,4900,5000,5100,5200,5300,5400,5500,5600,5700,5800,5900,6000,6100,6200,6300,6400,6500,6600,6700,6800,6900,7000,7100,7200,7300,7400,7500,7600,7700,7800,7900,8000,8100,8200,8300,8400,8500,8600,8700,8800,8900,9000,9100,9200,9300,9400,9500,9600,9700,9800,9900,10000]}},{\"cols\":[\"Variable\",\"x\",\"value\"],\"column_source\":{\"id\":\"6797\",\"type\":\"ColumnDataSource\"},\"kind\":\"ColumnDataChanged\",\"new\":{\"Variable\":[\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\"],\"value\":{\"__ndarray__\":\"ZmZmZmZmP0BmZmZmZuY+QGZmZmZmZj5AZmZmZmbmPUBmZmZmZmY9QGZmZmZm5jxAZmZmZmZmPEBmZmZmZuY7QGZmZmZmZjtAZmZmZmbmOkBmZmZmZmY6QGZmZmZm5jlAZmZmZmZmOUBmZmZmZuY4QGZmZmZmZjhAZmZmZmbmN0BmZmZmZmY3QGZmZmZm5jZAZmZmZmZmNkBmZmZmZuY1QGZmZmZmZjVAZmZmZmbmNEBmZmZmZmY0QGZmZmZm5jNAZmZmZmZmM0BmZmZmZuYyQGdmZmZmZjJAamZmZmbmMUB1ZmZmZmYxQKBmZmZm5jBAQmdmZmZmMEBH08zMzMwvQDjlzMzMzC5A2yjNzMzMLUDGJ87MzMwsQJ3o0czMzCtAJg7gzMzMKkBEYBXNzMwpQJZZ3s3MzChAvNnT0MzMJ0Bq+/rbzMwmQBBiBAbNzCVANnt1pM3MJEAaE6P5z8wjQCuHT8TYzCJA4SDi5PnMIUC0mjqdds0gQJoep2mVnh9AMsoWlSasHUBYsqobc9wbQAmyzFNccxpA+/x6sGbKGUBNrXe3GK8ZQLOKAI1ZSBlAbyc4zPPhGEAN4i1kjXsYQM4BUv0mFRhAXEtllsCuF0DXrmgvWkgXQEamWsjz4RZA1ZU5YY17FkD0xgP6JhUWQBdot5LArhVA14xSK1pIFUBULtPD8+EUQBEsN1yNexRASE189CYVFEDaQqCMwK4TQOOpoCRaSBNAJw97vPPhEkBm8yxUjXsSQL3Qs+smFRJARyENg8CuEUAmZzYaWkgRQB02LbHz4RBAAT/vR417EEBEXXreJhUQQH5NmemAXQ9AafzIFbSQDkBvUYFB58MNQN3MwGwa9wxACx6Hl00qDECcZNXBgF0LQPN6ruuzkApA6koXFefDCUD3LRc+GvcIQPtZuGZNKghA51sIj4BdB0DgoRi3s5AGQDsW/97mwwVAGs3WBhr3BEBSxsAuTSoEQLfF5FaAXQNAiUNyf7OQAkB8d6Go5sMBQGGAtNIZ9wBAEKv4/UwqAEDntY9VALv+P/ItFLNmIf0/TntuFc2H+z86lmV9M+75Pw==\",\"dtype\":\"float64\",\"shape\":[101]},\"x\":[0,100,200,300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,1600,1700,1800,1900,2000,2100,2200,2300,2400,2500,2600,2700,2800,2900,3000,3100,3200,3300,3400,3500,3600,3700,3800,3900,4000,4100,4200,4300,4400,4500,4600,4700,4800,4900,5000,5100,5200,5300,5400,5500,5600,5700,5800,5900,6000,6100,6200,6300,6400,6500,6600,6700,6800,6900,7000,7100,7200,7300,7400,7500,7600,7700,7800,7900,8000,8100,8200,8300,8400,8500,8600,8700,8800,8900,9000,9100,9200,9300,9400,9500,9600,9700,9800,9900,10000]}},{\"cols\":[\"Variable\",\"x\",\"value\"],\"column_source\":{\"id\":\"6816\",\"type\":\"ColumnDataSource\"},\"kind\":\"ColumnDataChanged\",\"new\":{\"Variable\":[\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\"],\"value\":{\"__ndarray__\":\"ZmZmZmZmPkBmZmZmZuY9QGZmZmZmZj1AZmZmZmbmPEBmZmZmZmY8QGZmZmZm5jtAZmZmZmZmO0BmZmZmZuY6QGZmZmZmZjpAZmZmZmbmOUBmZmZmZmY5QGZmZmZm5jhAZmZmZmZmOEBmZmZmZuY3QGZmZmZmZjdAZmZmZmbmNkBmZmZmZmY2QGZmZmZm5jVAZmZmZmZmNUBmZmZmZuY0QGZmZmZmZjRAZmZmZmbmM0BmZmZmZmYzQGZmZmZm5jJAZmZmZmZmMkBmZmZmZuYxQGZmZmZmZjFAZmZmZmbmMEBmZmZmZmYwQMzMzMzMzC9AzMzMzMzMLkDOzMzMzMwtQNLMzMzMzCxA5MzMzMzMK0AlzczMzMwqQBzOzMzMzClAvtHMzMzMKEBx38zMzMwnQBETzczMzCZAptXNzMzMJUAOs9DMzMwkQFx/28zMzCNAJDIEzczMIkDrk53NzMwhQGN338/MzCBATq28sJmZH0Cn2WrwmZkdQM77YduamRtAIrWQDZ6ZGUAte4oap5kXQFYmsu+zmRVAlfbdvK+ZE0CXGl1GNTMTQM5ss8rMzBJA4V1qZmZmEkBt9/////8RQICYmZmZmRFA9jEzMzMzEUB7y8zMzMwQQP9kZmZmZhBABf3/////D0AMMDMzMzMPQBRjZmZmZg5AHJaZmZmZDUAnyczMzMwMQDX8/////wtASC8zMzMzC0BfYmZmZmYKQH6VmZmZmQlApsjMzMzMCEDZ+/////8HQBkvMzMzMwdAaWJmZmZmBkDLlZmZmZkFQETJzMzMzARA1/z/////A0CIMDMzMzMDQF1kZmZmZgJAWpiZmZmZAUCGzMzMzMwAQOgAAAAAAABADmtmZmZm/j/Y1MzMzMz8P0A/MzMzM/s/WqqZmZmZ+T8/FgAAAAD4PweDZmZmZvY/zvDMzMzM9D+zXzMzMzPzP9jPmZmZmfE/YUEAAAAA8D/raM3MzMzsP4RSmpmZmek/6z9nZmZm5j+GMTQzMzPjP8UnAQAAAOA/QEacmZmZ2T8uSDYzMzPTP9KsoJmZmck/bMipmZmZuT8BAADoEPhjPQ==\",\"dtype\":\"float64\",\"shape\":[101]},\"x\":[0,100,200,300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,1600,1700,1800,1900,2000,2100,2200,2300,2400,2500,2600,2700,2800,2900,3000,3100,3200,3300,3400,3500,3600,3700,3800,3900,4000,4100,4200,4300,4400,4500,4600,4700,4800,4900,5000,5100,5200,5300,5400,5500,5600,5700,5800,5900,6000,6100,6200,6300,6400,6500,6600,6700,6800,6900,7000,7100,7200,7300,7400,7500,7600,7700,7800,7900,8000,8100,8200,8300,8400,8500,8600,8700,8800,8900,9000,9100,9200,9300,9400,9500,9600,9700,9800,9900,10000]}},{\"attr\":\"text\",\"kind\":\"ModelChanged\",\"model\":{\"id\":\"6660\",\"type\":\"Title\"},\"new\":\"t: 3000\"}],\"references\":[]},\"root\":\"6659\"}", "6": "{\"content\":{\"events\":[{\"attr\":\"end\",\"kind\":\"ModelChanged\",\"model\":{\"id\":\"6654\",\"type\":\"Range1d\"},\"new\":31.467624749705056},{\"attr\":\"reset_end\",\"kind\":\"ModelChanged\",\"model\":{\"id\":\"6654\",\"type\":\"Range1d\"},\"new\":31.467624749705056},{\"cols\":[\"Variable\",\"x\",\"value\"],\"column_source\":{\"id\":\"6694\",\"type\":\"ColumnDataSource\"},\"kind\":\"ColumnDataChanged\",\"new\":{\"Variable\":[\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\"],\"value\":{\"__ndarray__\":\"jchuQbZ3P0D5V46Wyfc+QFktPWz1lz5Ap5S+wBYvPkCfFbwX28g9QPrR7Fn7YT1Awp+zeWz7PEBE+nCA8JQ8QEBYN06gLjxAytvEKXzIO0AWkyBGi2I7QLamjtfS/DpAaq+1l1iXOkAaPY4OIjI6QO/p78Q0zTlAqpEvNZZoOUBmUlTOSwQ5QDDPDvJaoDhA0wUp9Mg8OECQFYsZm9k3QAzUXJfWdjdAMfUdkoAUN0Azar8cnrI2QE3pujc0UTZAiGYp0EfwNUBHNNi+3Y81QITPXMf6LzVAnkcnl6PQNEAFOJPE3HE0QLZJ982qEzRAtzOzGBK2M0DCMjzwFlkzQGrxJ4W9/DJAOts17AmhMkBI1lYdAEYyQFBgs/Kj6zFAew2wJ/mRMUCXaPBXAzkxQOc1WP7F4DBAfRsLdESJMEDis2rvgTIwQG8iJgYDuS9AInSrOYwOL0DyVGYJpWUuQMXNpbdSvi1Ah2H0NpoYLUAM4QIogHQsQCrVkNcI0itA7LNSPDgxK0DBHNb0EZIqQBZgZEWZ9ClA1KHjFdFYKUCA77bvu74oQHywnftbJihA2uKS/7KPJ0Anp6xcwvomQMyt/AyLZyZAwipyoQ3WJUCUCb4/SkYlQI4xOqBAuCRALMTUC/ArJED8WgBaV6EjQChqqu50GCNACA85uEaRIkBQuJEtygsiQLA/Kkz8hyFALjwmltkFIUCShoIQXoUgQNIjUUGFBiBAngsQXJQSH0C1sMqzThseQLay2IgtJx1AVBr8zyM2HEAM7CJxI0gbQCKpHkUdXRpAQrarEwF1GUD+T9KRvY8YQMeVq2BArRdAhBuWDHbNFkDCX+YMSvAVQN10IMSmFRVAXBXJgHU9FEBYPt1+nmcTQPE3AOoIlBJAoaRw4JrCEUCwuNV2OfMQQP4L9rzIJRBAGwnThle0DkCbG69EiSANQHg/pALpjwtAieC5QDcCCkDo8FzEMncIQPNhbK+Y7gZA2AjhmSRoBUDd1RqukOMDQIfs1MeVYAJAkJu4leveAEDULfl6kbz+P+LB5ATGvPs/ZJyv3N69+D+vV+j4RL/1Pw==\",\"dtype\":\"float64\",\"shape\":[101]},\"x\":[0,100,200,300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,1600,1700,1800,1900,2000,2100,2200,2300,2400,2500,2600,2700,2800,2900,3000,3100,3200,3300,3400,3500,3600,3700,3800,3900,4000,4100,4200,4300,4400,4500,4600,4700,4800,4900,5000,5100,5200,5300,5400,5500,5600,5700,5800,5900,6000,6100,6200,6300,6400,6500,6600,6700,6800,6900,7000,7100,7200,7300,7400,7500,7600,7700,7800,7900,8000,8100,8200,8300,8400,8500,8600,8700,8800,8900,9000,9100,9200,9300,9400,9500,9600,9700,9800,9900,10000]}},{\"cols\":[\"Variable\",\"x\",\"value\"],\"column_source\":{\"id\":\"6710\",\"type\":\"ColumnDataSource\"},\"kind\":\"ColumnDataChanged\",\"new\":{\"Variable\":[\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\"],\"value\":{\"__ndarray__\":\"ZmZmZmZmPkDS9YW7eeY9QLLM3sWfhj1AcCbh/rYdPUAeDG2JbLc8QH5KcWV5UDxAUe0zftLpO0CcAALdOYM7QEriyF/IHDtATpc6S362OkApgu3PYlA6QDRDbR976jlAH0Zc8MyEOUAH6mXHXR85QGyTzSkzujhAIycPjlJVOEDwpxZfwfA3QEpZOvqEjDdAXcytrqIoN0CANYq8H8U2QJTw81MBYjZAxf82lEz/NUCAMeWKBp01QDfo8jI0OzVAC1bTc9rZNED47ZMg/ng0QOkZ9/ajGDRASzKOntC4M0DoutKniFkzQLzpPovQ+jJAvX5lqKycMkC49QhFIT8yQNIdMowy4jFAyCRGjeSFMUAxJhw7OyoxQEJSEms6zzBA+cEi1OV0MEC5EfgNQRswQJ68AyCfhC9APIcSYSnULkB0/4pHJyUuQKi/4fWedy1ARkK8RpbLLEDk5BzLEiEsQGKPkMgZeCtAAWdeN7DQKkBWALrA2ioqQEKH+LydhilABF7JMf3jKEDLu3LQ/EIoQJHYEvSfoydA5D3mn+kFJ0As15N93GkmQJhkf9t6zyVABvYiq8Y2JUC8F3B/wZ8kQPtcOYtsCiRA+/Kkn8h2I0AA56gq1uQiQJvDkTWVVCJA2COUYwXGIUD9zmnwJTkhQGPi+q71rSBADH0TCHMkIEAylEzyNzkfQOlYOCbcLB5APGFi8swjHUBGhr2/Ax4cQB4Mphd5GxtAOOLpoSQcGkAaeuki/R8ZQOzQz3n4JhhAnO/fngsxF0BYx9WhKj4WQOwGWKhIThVA3Ep47FdhFEBK7D67SXcTQBjAP3MOkBJAclU1g5WrEUCWxKBozckQQI3n2VxH1Q9AxNIq1wkcDkB90KSDuWcMQG5pnLgruApA3RXU3DMNCUBUEzllo2YHQCI87tJJxAVAEJvIsfQlBEDQ/mqXb4sCQHQDOCOE9ABA/BW5/vPB/j9/7n3GLaH7P50jUi89hvg/CocV+qVw9T9kg3Mo6F/yP33AVSgAp+4/12nWGc2V6D9VuBb7IYviP0EpImXGC9k/skH9jLwTyj9LvsS7EeSQPw==\",\"dtype\":\"float64\",\"shape\":[101]},\"x\":[0,100,200,300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,1600,1700,1800,1900,2000,2100,2200,2300,2400,2500,2600,2700,2800,2900,3000,3100,3200,3300,3400,3500,3600,3700,3800,3900,4000,4100,4200,4300,4400,4500,4600,4700,4800,4900,5000,5100,5200,5300,5400,5500,5600,5700,5800,5900,6000,6100,6200,6300,6400,6500,6600,6700,6800,6900,7000,7100,7200,7300,7400,7500,7600,7700,7800,7900,8000,8100,8200,8300,8400,8500,8600,8700,8800,8900,9000,9100,9200,9300,9400,9500,9600,9700,9800,9900,10000]}},{\"cols\":[\"Variable\",\"x\",\"value\"],\"column_source\":{\"id\":\"6797\",\"type\":\"ColumnDataSource\"},\"kind\":\"ColumnDataChanged\",\"new\":{\"Variable\":[\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\"],\"value\":{\"__ndarray__\":\"ZmZmZmZmP0BmZmZmZuY+QGZmZmZmZj5AZmZmZmbmPUBmZmZmZmY9QGZmZmZm5jxAZmZmZmZmPEBmZmZmZuY7QGZmZmZmZjtAZmZmZmbmOkBmZmZmZmY6QGZmZmZm5jlAZmZmZmZmOUBmZmZmZuY4QGZmZmZmZjhAZmZmZmbmN0BmZmZmZmY3QGZmZmZm5jZAZmZmZmZmNkBmZmZmZuY1QGZmZmZmZjVAZmZmZmbmNEBmZmZmZmY0QGZmZmZm5jNAZmZmZmZmM0BmZmZmZuYyQGdmZmZmZjJAamZmZmbmMUB1ZmZmZmYxQKBmZmZm5jBAQmdmZmZmMEBH08zMzMwvQDjlzMzMzC5A2yjNzMzMLUDGJ87MzMwsQJ3o0czMzCtAJg7gzMzMKkBEYBXNzMwpQJZZ3s3MzChAvNnT0MzMJ0Bq+/rbzMwmQBBiBAbNzCVANnt1pM3MJEAaE6P5z8wjQCuHT8TYzCJA4SDi5PnMIUC0mjqdds0gQJoep2mVnh9AMsoWlSasHUBYsqobc9wbQAmyzFNccxpA+/x6sGbKGUBNrXe3GK8ZQLOKAI1ZSBlAbyc4zPPhGEAN4i1kjXsYQM4BUv0mFRhAXEtllsCuF0DXrmgvWkgXQEamWsjz4RZA1ZU5YY17FkD0xgP6JhUWQBdot5LArhVA14xSK1pIFUBULtPD8+EUQBEsN1yNexRASE189CYVFEDaQqCMwK4TQOOpoCRaSBNAJw97vPPhEkBm8yxUjXsSQL3Qs+smFRJARyENg8CuEUAmZzYaWkgRQB02LbHz4RBAAT/vR417EEBEXXreJhUQQH5NmemAXQ9AafzIFbSQDkBvUYFB58MNQN3MwGwa9wxACx6Hl00qDECcZNXBgF0LQPN6ruuzkApA6koXFefDCUD3LRc+GvcIQPtZuGZNKghA51sIj4BdB0DgoRi3s5AGQDsW/97mwwVAGs3WBhr3BEBSxsAuTSoEQLfF5FaAXQNAiUNyf7OQAkB8d6Go5sMBQGGAtNIZ9wBAEKv4/UwqAEDntY9VALv+P/ItFLNmIf0/TntuFc2H+z86lmV9M+75Pw==\",\"dtype\":\"float64\",\"shape\":[101]},\"x\":[0,100,200,300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,1600,1700,1800,1900,2000,2100,2200,2300,2400,2500,2600,2700,2800,2900,3000,3100,3200,3300,3400,3500,3600,3700,3800,3900,4000,4100,4200,4300,4400,4500,4600,4700,4800,4900,5000,5100,5200,5300,5400,5500,5600,5700,5800,5900,6000,6100,6200,6300,6400,6500,6600,6700,6800,6900,7000,7100,7200,7300,7400,7500,7600,7700,7800,7900,8000,8100,8200,8300,8400,8500,8600,8700,8800,8900,9000,9100,9200,9300,9400,9500,9600,9700,9800,9900,10000]}},{\"cols\":[\"Variable\",\"x\",\"value\"],\"column_source\":{\"id\":\"6816\",\"type\":\"ColumnDataSource\"},\"kind\":\"ColumnDataChanged\",\"new\":{\"Variable\":[\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\"],\"value\":{\"__ndarray__\":\"ZmZmZmZmPkBmZmZmZuY9QGZmZmZmZj1AZmZmZmbmPEBmZmZmZmY8QGZmZmZm5jtAZmZmZmZmO0BmZmZmZuY6QGZmZmZmZjpAZmZmZmbmOUBmZmZmZmY5QGZmZmZm5jhAZmZmZmZmOEBmZmZmZuY3QGZmZmZmZjdAZmZmZmbmNkBmZmZmZmY2QGZmZmZm5jVAZmZmZmZmNUBmZmZmZuY0QGZmZmZmZjRAZmZmZmbmM0BmZmZmZmYzQGZmZmZm5jJAZmZmZmZmMkBmZmZmZuYxQGZmZmZmZjFAZmZmZmbmMEBmZmZmZmYwQMzMzMzMzC9AzMzMzMzMLkDOzMzMzMwtQNLMzMzMzCxA5MzMzMzMK0AlzczMzMwqQBzOzMzMzClAvtHMzMzMKEBx38zMzMwnQBETzczMzCZAptXNzMzMJUAOs9DMzMwkQFx/28zMzCNAJDIEzczMIkDrk53NzMwhQGN338/MzCBATq28sJmZH0Cn2WrwmZkdQM77YduamRtAIrWQDZ6ZGUAte4oap5kXQFYmsu+zmRVAlfbdvK+ZE0CXGl1GNTMTQM5ss8rMzBJA4V1qZmZmEkBt9/////8RQICYmZmZmRFA9jEzMzMzEUB7y8zMzMwQQP9kZmZmZhBABf3/////D0AMMDMzMzMPQBRjZmZmZg5AHJaZmZmZDUAnyczMzMwMQDX8/////wtASC8zMzMzC0BfYmZmZmYKQH6VmZmZmQlApsjMzMzMCEDZ+/////8HQBkvMzMzMwdAaWJmZmZmBkDLlZmZmZkFQETJzMzMzARA1/z/////A0CIMDMzMzMDQF1kZmZmZgJAWpiZmZmZAUCGzMzMzMwAQOgAAAAAAABADmtmZmZm/j/Y1MzMzMz8P0A/MzMzM/s/WqqZmZmZ+T8/FgAAAAD4PweDZmZmZvY/zvDMzMzM9D+zXzMzMzPzP9jPmZmZmfE/YUEAAAAA8D/raM3MzMzsP4RSmpmZmek/6z9nZmZm5j+GMTQzMzPjP8UnAQAAAOA/QEacmZmZ2T8uSDYzMzPTP9KsoJmZmck/bMipmZmZuT8BAADoEPhjPQ==\",\"dtype\":\"float64\",\"shape\":[101]},\"x\":[0,100,200,300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,1600,1700,1800,1900,2000,2100,2200,2300,2400,2500,2600,2700,2800,2900,3000,3100,3200,3300,3400,3500,3600,3700,3800,3900,4000,4100,4200,4300,4400,4500,4600,4700,4800,4900,5000,5100,5200,5300,5400,5500,5600,5700,5800,5900,6000,6100,6200,6300,6400,6500,6600,6700,6800,6900,7000,7100,7200,7300,7400,7500,7600,7700,7800,7900,8000,8100,8200,8300,8400,8500,8600,8700,8800,8900,9000,9100,9200,9300,9400,9500,9600,9700,9800,9900,10000]}},{\"attr\":\"text\",\"kind\":\"ModelChanged\",\"model\":{\"id\":\"6660\",\"type\":\"Title\"},\"new\":\"t: 3600\"}],\"references\":[]},\"root\":\"6659\"}", "7": "{\"content\":{\"events\":[{\"attr\":\"end\",\"kind\":\"ModelChanged\",\"model\":{\"id\":\"6654\",\"type\":\"Range1d\"},\"new\":31.478561918553638},{\"attr\":\"reset_end\",\"kind\":\"ModelChanged\",\"model\":{\"id\":\"6654\",\"type\":\"Range1d\"},\"new\":31.478561918553638},{\"cols\":[\"Variable\",\"x\",\"value\"],\"column_source\":{\"id\":\"6694\",\"type\":\"ColumnDataSource\"},\"kind\":\"ColumnDataChanged\",\"new\":{\"Variable\":[\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\"],\"value\":{\"__ndarray__\":\"hEytCIN6P0BSVCD/mPo+QECgYa4Snz5AGVZd7Wo5PkAUvh01qdY9QGrO9KYvcz1AmfHEdgcQPUBJsNP17Kw8QKpJE3L5STxA1kSEOSznO0Aj+MHUi4Q7QNOTFL8cIjtAYzRx/OO/OkBqmdNf5l06QJOS+L0o/DlAqOg33q+aOUATRLZ9gDk5QIO5e02f2DhA8yD18RB4OEB85w8C2hc4QAk8cQb/tzdA1sakeIRYN0AcyUzCbvk2QH7bUDzCmjZA2gIMLoM8NkDR23nMtd41QLXiYjlegTVANMuHgoAkNUA44cugIMg0QOtrXndCbDRAHA3j0ukQNEAxGJloGrYzQCndgdXXWzNAH+WFnSUCM0CAH5kqB6kyQEcA3st/UDJAepHHtJL4MUCkezr8QqExQF4LrZuTSjFAujtGbof0MEC0z/svIZ8wQOSHr3xjSjBAUQeXnqHsL0BowbsB10UvQI1dZ49roC5ACqPmbGP8LUAI22x2wlktQE0GRz2MuCxAf7oOBsQYLEDg/9zGbHorQKeRfSWJ3SpAMfGidRtCKkCGxxu3JagpQLwhCpSpDylAniIdX6h4KEBv1s0RI+MnQPrnn0oaTydA6QlnS468JkDa/pH3fismQHxAfNLrmyVAJGHH/dMNJUCeXr03NoEkQLw6vdkQ9iNAgE2z1mFsI0CO6J65JuQiQKgGJ6RcXSJA5uk/TQDYIUCFtOP/DVQhQOAz4JmB0SBAeUO8ilZQIEC6u26lD6EfQO5HzAMgpB5AZa3dbtKpHUCo6NFBGrIcQA/BxvPpvBtA0mgpFzPKGkCmEHNZ5tkZQMp5SYPz6xhAzPELeUkAGEDdedU71hYXQIom/eqGLxZATP8dxkdKFUDeya8vBGcUQLA5OrCmhRNA2ugr+himEkDmRl7uQ8gRQNVJT6EP7BBAEBsZYWMREECqZ154S3AOQB65zhF5wAxAkIin2xkTC0CMzuPV9mcJQJB5YMfXvgdA5kiVU4MXBkDZn/YRv3EEQJTm9qZPzQJAFs6Y3vgpAUB1lfyQ+w7/PxLgtKpBy/s/FFlN60eI+D+m1ldzkUX1Pw==\",\"dtype\":\"float64\",\"shape\":[101]},\"x\":[0,100,200,300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,1600,1700,1800,1900,2000,2100,2200,2300,2400,2500,2600,2700,2800,2900,3000,3100,3200,3300,3400,3500,3600,3700,3800,3900,4000,4100,4200,4300,4400,4500,4600,4700,4800,4900,5000,5100,5200,5300,5400,5500,5600,5700,5800,5900,6000,6100,6200,6300,6400,6500,6600,6700,6800,6900,7000,7100,7200,7300,7400,7500,7600,7700,7800,7900,8000,8100,8200,8300,8400,8500,8600,8700,8800,8900,9000,9100,9200,9300,9400,9500,9600,9700,9800,9900,10000]}},{\"cols\":[\"Variable\",\"x\",\"value\"],\"column_source\":{\"id\":\"6710\",\"type\":\"ColumnDataSource\"},\"kind\":\"ColumnDataChanged\",\"new\":{\"Variable\":[\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\"],\"value\":{\"__ndarray__\":\"ZmZmZmZmPkA0btlcfOY9QF7miMnwij1AKeXV0D8lPUAba/aZcMI8QFADTVnlXjxAZ+6NPaf7O0DiyjWYcpg7QD8ECbZgNTtAZCDy43DSOkCUT0OpqW86QCwu138PDTpAZmkRaqeqOUD8YDo5dkg5QEpMPMCA5jhA48d/xMuEOEBo2yABXCM4QGbpCCU2wjdAs8hz0l5hN0BFtQ+e2gA3QAgBOQ6uoDZAIrotmt1ANkAcK0OpbeE1QOdyGpJigjVAUfTUmcAjNUDBZUjzi8U0QAiQMr7IZzRAYLlsBnsKNEBewB7Dpq0zQMzq8dVPUTNATm5DCnr1MkArulYUKZoyQMiLh5BgPzJAxNh7AiTlMUAdnFXUdosxQISV5FVcMjFAaAzYu9fZMEBuqvAe7IEwQJSDMnucKjBAp8kuXtenL0AsCIP1uPsuQPJfXf7iUC5AtT/YelqnLUCMD5YrJP8sQFwtLI5EWCxAqhGQ27+yK0DK84YGmg4rQL1OGLrWaypA1agDWHnKKUCqCjr3hCopQN2TW2L8iyhABqU5FuLuJ0AqF15AOFMnQJoBmL0AuSZAbpCOGD0gJkCHclqI7oglQOVoJu8V8yRANYHX2LNeJEBuib15yMsjQEBHTK1TOiNATP7d9FSqIkAQzn92yxsiQMdsyPu1jiFApL658BIDIUCCxa1i4HggQDi6nv434B9ALmM+J4bRHkArrwoWpcUdQFzL39yNvBxAaNX9xji2G0BaL3xXnbIaQN7p2EeysRlAyvmkhm2zGEBrAU42xLcXQMaWBqyqvhZASiXObhTIFUAO0Zk29NMUQCwmoOs74hNAduHJpdzyEkBYwkqsxgUSQFQeZnXpGhFAnuBjpjMyEECWb3cnJpcOQEns+oLpzQxAhCX+x4kIC0D2fbTB3UYJQPdRiqC6iAdA+mKn/fPNBUD8EWDfWxYEQD6Etr7CYQJAXqwPjvevAEBhD4WCjwH+P4r2Uq7+p/o/mMG8ydFS9z+FlJJFmwH0P0I9UPfqs/A/1gbHdpzS6j8mnsk3oELkP+GAv+/lbds/TvjLPYq6zD+moOo8VxeVPw==\",\"dtype\":\"float64\",\"shape\":[101]},\"x\":[0,100,200,300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,1600,1700,1800,1900,2000,2100,2200,2300,2400,2500,2600,2700,2800,2900,3000,3100,3200,3300,3400,3500,3600,3700,3800,3900,4000,4100,4200,4300,4400,4500,4600,4700,4800,4900,5000,5100,5200,5300,5400,5500,5600,5700,5800,5900,6000,6100,6200,6300,6400,6500,6600,6700,6800,6900,7000,7100,7200,7300,7400,7500,7600,7700,7800,7900,8000,8100,8200,8300,8400,8500,8600,8700,8800,8900,9000,9100,9200,9300,9400,9500,9600,9700,9800,9900,10000]}},{\"cols\":[\"Variable\",\"x\",\"value\"],\"column_source\":{\"id\":\"6797\",\"type\":\"ColumnDataSource\"},\"kind\":\"ColumnDataChanged\",\"new\":{\"Variable\":[\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\"],\"value\":{\"__ndarray__\":\"ZmZmZmZmP0BmZmZmZuY+QGZmZmZmZj5AZmZmZmbmPUBmZmZmZmY9QGZmZmZm5jxAZmZmZmZmPEBmZmZmZuY7QGZmZmZmZjtAZmZmZmbmOkBmZmZmZmY6QGZmZmZm5jlAZmZmZmZmOUBmZmZmZuY4QGZmZmZmZjhAZmZmZmbmN0BmZmZmZmY3QGZmZmZm5jZAZmZmZmZmNkBmZmZmZuY1QGZmZmZmZjVAZmZmZmbmNEBmZmZmZmY0QGZmZmZm5jNAZmZmZmZmM0BmZmZmZuYyQGdmZmZmZjJAamZmZmbmMUB1ZmZmZmYxQKBmZmZm5jBAQmdmZmZmMEBH08zMzMwvQDjlzMzMzC5A2yjNzMzMLUDGJ87MzMwsQJ3o0czMzCtAJg7gzMzMKkBEYBXNzMwpQJZZ3s3MzChAvNnT0MzMJ0Bq+/rbzMwmQBBiBAbNzCVANnt1pM3MJEAaE6P5z8wjQCuHT8TYzCJA4SDi5PnMIUC0mjqdds0gQJoep2mVnh9AMsoWlSasHUBYsqobc9wbQAmyzFNccxpA+/x6sGbKGUBNrXe3GK8ZQLOKAI1ZSBlAbyc4zPPhGEAN4i1kjXsYQM4BUv0mFRhAXEtllsCuF0DXrmgvWkgXQEamWsjz4RZA1ZU5YY17FkD0xgP6JhUWQBdot5LArhVA14xSK1pIFUBULtPD8+EUQBEsN1yNexRASE189CYVFEDaQqCMwK4TQOOpoCRaSBNAJw97vPPhEkBm8yxUjXsSQL3Qs+smFRJARyENg8CuEUAmZzYaWkgRQB02LbHz4RBAAT/vR417EEBEXXreJhUQQH5NmemAXQ9AafzIFbSQDkBvUYFB58MNQN3MwGwa9wxACx6Hl00qDECcZNXBgF0LQPN6ruuzkApA6koXFefDCUD3LRc+GvcIQPtZuGZNKghA51sIj4BdB0DgoRi3s5AGQDsW/97mwwVAGs3WBhr3BEBSxsAuTSoEQLfF5FaAXQNAiUNyf7OQAkB8d6Go5sMBQGGAtNIZ9wBAEKv4/UwqAEDntY9VALv+P/ItFLNmIf0/TntuFc2H+z86lmV9M+75Pw==\",\"dtype\":\"float64\",\"shape\":[101]},\"x\":[0,100,200,300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,1600,1700,1800,1900,2000,2100,2200,2300,2400,2500,2600,2700,2800,2900,3000,3100,3200,3300,3400,3500,3600,3700,3800,3900,4000,4100,4200,4300,4400,4500,4600,4700,4800,4900,5000,5100,5200,5300,5400,5500,5600,5700,5800,5900,6000,6100,6200,6300,6400,6500,6600,6700,6800,6900,7000,7100,7200,7300,7400,7500,7600,7700,7800,7900,8000,8100,8200,8300,8400,8500,8600,8700,8800,8900,9000,9100,9200,9300,9400,9500,9600,9700,9800,9900,10000]}},{\"cols\":[\"Variable\",\"x\",\"value\"],\"column_source\":{\"id\":\"6816\",\"type\":\"ColumnDataSource\"},\"kind\":\"ColumnDataChanged\",\"new\":{\"Variable\":[\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\"],\"value\":{\"__ndarray__\":\"ZmZmZmZmPkBmZmZmZuY9QGZmZmZmZj1AZmZmZmbmPEBmZmZmZmY8QGZmZmZm5jtAZmZmZmZmO0BmZmZmZuY6QGZmZmZmZjpAZmZmZmbmOUBmZmZmZmY5QGZmZmZm5jhAZmZmZmZmOEBmZmZmZuY3QGZmZmZmZjdAZmZmZmbmNkBmZmZmZmY2QGZmZmZm5jVAZmZmZmZmNUBmZmZmZuY0QGZmZmZmZjRAZmZmZmbmM0BmZmZmZmYzQGZmZmZm5jJAZmZmZmZmMkBmZmZmZuYxQGZmZmZmZjFAZmZmZmbmMEBmZmZmZmYwQMzMzMzMzC9AzMzMzMzMLkDOzMzMzMwtQNLMzMzMzCxA5MzMzMzMK0AlzczMzMwqQBzOzMzMzClAvtHMzMzMKEBx38zMzMwnQBETzczMzCZAptXNzMzMJUAOs9DMzMwkQFx/28zMzCNAJDIEzczMIkDrk53NzMwhQGN338/MzCBATq28sJmZH0Cn2WrwmZkdQM77YduamRtAIrWQDZ6ZGUAte4oap5kXQFYmsu+zmRVAlfbdvK+ZE0CXGl1GNTMTQM5ss8rMzBJA4V1qZmZmEkBt9/////8RQICYmZmZmRFA9jEzMzMzEUB7y8zMzMwQQP9kZmZmZhBABf3/////D0AMMDMzMzMPQBRjZmZmZg5AHJaZmZmZDUAnyczMzMwMQDX8/////wtASC8zMzMzC0BfYmZmZmYKQH6VmZmZmQlApsjMzMzMCEDZ+/////8HQBkvMzMzMwdAaWJmZmZmBkDLlZmZmZkFQETJzMzMzARA1/z/////A0CIMDMzMzMDQF1kZmZmZgJAWpiZmZmZAUCGzMzMzMwAQOgAAAAAAABADmtmZmZm/j/Y1MzMzMz8P0A/MzMzM/s/WqqZmZmZ+T8/FgAAAAD4PweDZmZmZvY/zvDMzMzM9D+zXzMzMzPzP9jPmZmZmfE/YUEAAAAA8D/raM3MzMzsP4RSmpmZmek/6z9nZmZm5j+GMTQzMzPjP8UnAQAAAOA/QEacmZmZ2T8uSDYzMzPTP9KsoJmZmck/bMipmZmZuT8BAADoEPhjPQ==\",\"dtype\":\"float64\",\"shape\":[101]},\"x\":[0,100,200,300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,1600,1700,1800,1900,2000,2100,2200,2300,2400,2500,2600,2700,2800,2900,3000,3100,3200,3300,3400,3500,3600,3700,3800,3900,4000,4100,4200,4300,4400,4500,4600,4700,4800,4900,5000,5100,5200,5300,5400,5500,5600,5700,5800,5900,6000,6100,6200,6300,6400,6500,6600,6700,6800,6900,7000,7100,7200,7300,7400,7500,7600,7700,7800,7900,8000,8100,8200,8300,8400,8500,8600,8700,8800,8900,9000,9100,9200,9300,9400,9500,9600,9700,9800,9900,10000]}},{\"attr\":\"text\",\"kind\":\"ModelChanged\",\"model\":{\"id\":\"6660\",\"type\":\"Title\"},\"new\":\"t: 4200\"}],\"references\":[]},\"root\":\"6659\"}", "8": "{\"content\":{\"events\":[{\"attr\":\"end\",\"kind\":\"ModelChanged\",\"model\":{\"id\":\"6654\",\"type\":\"Range1d\"},\"new\":31.4884189717799},{\"attr\":\"reset_end\",\"kind\":\"ModelChanged\",\"model\":{\"id\":\"6654\",\"type\":\"Range1d\"},\"new\":31.4884189717799},{\"cols\":[\"Variable\",\"x\",\"value\"],\"column_source\":{\"id\":\"6694\",\"type\":\"ColumnDataSource\"},\"kind\":\"ColumnDataChanged\",\"new\":{\"Variable\":[\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\",\"H\"],\"value\":{\"__ndarray__\":\"ZoqWBgl9P0COlwdCIf0+QMV5Nq9NpT5A3rUwN3BCPkCZvnSEruI9QM1g9IIlgj1AlWa9vO0hPUDyCe1Nv8E8QKWO0KWzYTxAEbCJTckBPECE1Qk0BqI7QMWXszVuQjtAdzhSuAXjOkCw8fjx0IM6QH0tHBvUJDpAxNjXXxPGOUBvlA/jkmc5QCndpLxWCTlAy7QG+WKrOEDs4WGYu004QDza6o1k8DdA4RIgv2GTN0DIzA0DtzY3QMPXkCFo2jZAfvWY0nh+NkDDp2q97CI2QBFz4HfHxzVA+I6rhQxtNUAWA5RXvxI1QHQvuErjuDRAo8DLp3tfNEAMEVaiiwY0QFj671cWrjNAhRuBzx5WM0B0mXz4p/4yQD1iHaq0pzJAm/yhokdRMkD474eGY/sxQLvSxt8KpjFA6w8LHUBRMUBPd/CQBf0wQHmuPHFdqTBAzJsZ1klWMECG6E+5zAMwQAh0A+vPYy9AK43LijrBLkBy3AWG3B8uQGAJ2c24fy1AfPz+DtLgLEDkbUGwKkMsQBYh+dDEpitA1FSQR6ILK0Da+AigxHEqQPhJhxot2SlApIPhqdxBKUCIZTXy06soQHxchEcTFyhA9C9XrJqDJ0A4J2rQafEmQN6uYg+AYCZAfJmPb9zQJUBsL7WgfUIlQIxV5vphtSRAIC1sfYcpJEC2pr3N654jQMCbiDaMFSNAFB7OpmWNIkC2xhOxdAYiQGrpq4q1gCFAWq4WCyT8IEB3L36ru3ggQDSjnwzv7B9AAlvqraTqHkBY6l3zjOodQKS1KNeb7BxAFydzlcTwG0BORQCt+fYaQINSJ+As/xlAAAAsNk8JGUBTyvr8UBUYQNYPT8shIxdAzl9Ig7AyFkCBXHRV60MVQIpTUsS/VhRA12JVqBprE0B2m2k06IASQO8WAPsTmBFAFlml84iwEEBwSUkCY5QPQKYsdPDuyQ1ActKoTYgBDEBggcy3ADsKQDtOi98odghAiXAumtCyBkDOLIL0xvAEQB/OwEbaLwNA/Ed1SdhvAUCCYIpWHGH/P5e5HU+R4/s/hDuLO6hm+D/fEkNT+en0Pw==\",\"dtype\":\"float64\",\"shape\":[101]},\"x\":[0,100,200,300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,1600,1700,1800,1900,2000,2100,2200,2300,2400,2500,2600,2700,2800,2900,3000,3100,3200,3300,3400,3500,3600,3700,3800,3900,4000,4100,4200,4300,4400,4500,4600,4700,4800,4900,5000,5100,5200,5300,5400,5500,5600,5700,5800,5900,6000,6100,6200,6300,6400,6500,6600,6700,6800,6900,7000,7100,7200,7300,7400,7500,7600,7700,7800,7900,8000,8100,8200,8300,8400,8500,8600,8700,8800,8900,9000,9100,9200,9300,9400,9500,9600,9700,9800,9900,10000]}},{\"cols\":[\"Variable\",\"x\",\"value\"],\"column_source\":{\"id\":\"6710\",\"type\":\"ColumnDataSource\"},\"kind\":\"ColumnDataChanged\",\"new\":{\"Variable\":[\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\",\"zb\"],\"value\":{\"__ndarray__\":\"ZmZmZmZmPkCOc9ehfuY9QJ9NeEymjj1AJtBpdMArPUCd6ud+8ss8QPN7nGdZazxAcPjotA0LPEBTrGODx6o7QFFG70GgSjtAwKddeZbqOkDVNEMYsIo6QF/BnfrwKjpAV0fPhV3LOUAmqH7v+Ws5QIL1s2/KDDlAn48hMtOtOEBtqUdZGE84QCYErvyd8DdAsIp3KGiSN0DT3JbcejQ3QCzmHAza1jZA2T+AnIl5NkApeOZkjRw2QGjAbC3pvzVApa9wrqBjNUDM69iPtwc1QHPIXWgxrDRAeNvRvBFRNEAkjWr/W/YzQNCpCI8TnDNA0PyAtjtCM0DH/eSr1+gyQBaby4/qjzJAGi6abHc3MkDyps01gd8xQGwARMcKiDFARQ2G5BYxMUCasxE4qNowQJ2rpFLBhDBAS9qHqmQvMEBmxLY1KbUvQE4Ox8WmDC9ACAetSkZlLkB84VbPC78tQJrN1CL7GS1A7fH71hd2LEDKcAw/ZdMrQBDRWm7mMStAOST9Np6RKkDBTHwoj/IpQArIiY67VClAQGi6byW4KEA+bEaMzhwoQIZpz1y4gidAcIAsEeTpJkDMVj2PUlImQCJZxHEEvCVAyMZIB/omJUAVDwFRM5MkQFMMxgGwACRAZqcPfW9vI0Bdd/vVcN8iQF3uXc6yUCJAUqve1TPDIUAjiiAJ8jYhQNAO9jDrqyBAA86iwRwiIEBl81S0BzMfQMx+XIc6JB5AM1uy4coXHUCgw7j6sA0cQJCX91rkBRtArMlY21sAGkDTmYmkDf0YQOqwgi7v+xdA0m05QPX8FkDw+HzvEwAWQCQEAqE+BRVAlnqgCGgMFEAiy8YpghUTQHTuJlh+IBJA7MihOE0tEUDQEHbC3jsQQA7jcIFEmA5AinA2qAy8DEBMzBjq8eIKQH4lY+zODAlA8gmTDn05B0D4qfdw1GgFQGZsPvyrmgNAfGD+adnOAUAAE1ROMQUAQHGYPUUOe/w/HpLeolrv+D9R7myH6mb1P/FEgd5e4fE/SB0bmq287D8QjHGn37rlP+h24c8Xed0/9EUbv54Dzz/8ATxz4eSYPw==\",\"dtype\":\"float64\",\"shape\":[101]},\"x\":[0,100,200,300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,1600,1700,1800,1900,2000,2100,2200,2300,2400,2500,2600,2700,2800,2900,3000,3100,3200,3300,3400,3500,3600,3700,3800,3900,4000,4100,4200,4300,4400,4500,4600,4700,4800,4900,5000,5100,5200,5300,5400,5500,5600,5700,5800,5900,6000,6100,6200,6300,6400,6500,6600,6700,6800,6900,7000,7100,7200,7300,7400,7500,7600,7700,7800,7900,8000,8100,8200,8300,8400,8500,8600,8700,8800,8900,9000,9100,9200,9300,9400,9500,9600,9700,9800,9900,10000]}},{\"cols\":[\"Variable\",\"x\",\"value\"],\"column_source\":{\"id\":\"6797\",\"type\":\"ColumnDataSource\"},\"kind\":\"ColumnDataChanged\",\"new\":{\"Variable\":[\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\",\"H_ini\"],\"value\":{\"__ndarray__\":\"ZmZmZmZmP0BmZmZmZuY+QGZmZmZmZj5AZmZmZmbmPUBmZmZmZmY9QGZmZmZm5jxAZmZmZmZmPEBmZmZmZuY7QGZmZmZmZjtAZmZmZmbmOkBmZmZmZmY6QGZmZmZm5jlAZmZmZmZmOUBmZmZmZuY4QGZmZmZmZjhAZmZmZmbmN0BmZmZmZmY3QGZmZmZm5jZAZmZmZmZmNkBmZmZmZuY1QGZmZmZmZjVAZmZmZmbmNEBmZmZmZmY0QGZmZmZm5jNAZmZmZmZmM0BmZmZmZuYyQGdmZmZmZjJAamZmZmbmMUB1ZmZmZmYxQKBmZmZm5jBAQmdmZmZmMEBH08zMzMwvQDjlzMzMzC5A2yjNzMzMLUDGJ87MzMwsQJ3o0czMzCtAJg7gzMzMKkBEYBXNzMwpQJZZ3s3MzChAvNnT0MzMJ0Bq+/rbzMwmQBBiBAbNzCVANnt1pM3MJEAaE6P5z8wjQCuHT8TYzCJA4SDi5PnMIUC0mjqdds0gQJoep2mVnh9AMsoWlSasHUBYsqobc9wbQAmyzFNccxpA+/x6sGbKGUBNrXe3GK8ZQLOKAI1ZSBlAbyc4zPPhGEAN4i1kjXsYQM4BUv0mFRhAXEtllsCuF0DXrmgvWkgXQEamWsjz4RZA1ZU5YY17FkD0xgP6JhUWQBdot5LArhVA14xSK1pIFUBULtPD8+EUQBEsN1yNexRASE189CYVFEDaQqCMwK4TQOOpoCRaSBNAJw97vPPhEkBm8yxUjXsSQL3Qs+smFRJARyENg8CuEUAmZzYaWkgRQB02LbHz4RBAAT/vR417EEBEXXreJhUQQH5NmemAXQ9AafzIFbSQDkBvUYFB58MNQN3MwGwa9wxACx6Hl00qDECcZNXBgF0LQPN6ruuzkApA6koXFefDCUD3LRc+GvcIQPtZuGZNKghA51sIj4BdB0DgoRi3s5AGQDsW/97mwwVAGs3WBhr3BEBSxsAuTSoEQLfF5FaAXQNAiUNyf7OQAkB8d6Go5sMBQGGAtNIZ9wBAEKv4/UwqAEDntY9VALv+P/ItFLNmIf0/TntuFc2H+z86lmV9M+75Pw==\",\"dtype\":\"float64\",\"shape\":[101]},\"x\":[0,100,200,300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,1600,1700,1800,1900,2000,2100,2200,2300,2400,2500,2600,2700,2800,2900,3000,3100,3200,3300,3400,3500,3600,3700,3800,3900,4000,4100,4200,4300,4400,4500,4600,4700,4800,4900,5000,5100,5200,5300,5400,5500,5600,5700,5800,5900,6000,6100,6200,6300,6400,6500,6600,6700,6800,6900,7000,7100,7200,7300,7400,7500,7600,7700,7800,7900,8000,8100,8200,8300,8400,8500,8600,8700,8800,8900,9000,9100,9200,9300,9400,9500,9600,9700,9800,9900,10000]}},{\"cols\":[\"Variable\",\"x\",\"value\"],\"column_source\":{\"id\":\"6816\",\"type\":\"ColumnDataSource\"},\"kind\":\"ColumnDataChanged\",\"new\":{\"Variable\":[\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\",\"zb_ini\"],\"value\":{\"__ndarray__\":\"ZmZmZmZmPkBmZmZmZuY9QGZmZmZmZj1AZmZmZmbmPEBmZmZmZmY8QGZmZmZm5jtAZmZmZmZmO0BmZmZmZuY6QGZmZmZmZjpAZmZmZmbmOUBmZmZmZmY5QGZmZmZm5jhAZmZmZmZmOEBmZmZmZuY3QGZmZmZmZjdAZmZmZmbmNkBmZmZmZmY2QGZmZmZm5jVAZmZmZmZmNUBmZmZmZuY0QGZmZmZmZjRAZmZmZmbmM0BmZmZmZmYzQGZmZmZm5jJAZmZmZmZmMkBmZmZmZuYxQGZmZmZmZjFAZmZmZmbmMEBmZmZmZmYwQMzMzMzMzC9AzMzMzMzMLkDOzMzMzMwtQNLMzMzMzCxA5MzMzMzMK0AlzczMzMwqQBzOzMzMzClAvtHMzMzMKEBx38zMzMwnQBETzczMzCZAptXNzMzMJUAOs9DMzMwkQFx/28zMzCNAJDIEzczMIkDrk53NzMwhQGN338/MzCBATq28sJmZH0Cn2WrwmZkdQM77YduamRtAIrWQDZ6ZGUAte4oap5kXQFYmsu+zmRVAlfbdvK+ZE0CXGl1GNTMTQM5ss8rMzBJA4V1qZmZmEkBt9/////8RQICYmZmZmRFA9jEzMzMzEUB7y8zMzMwQQP9kZmZmZhBABf3/////D0AMMDMzMzMPQBRjZmZmZg5AHJaZmZmZDUAnyczMzMwMQDX8/////wtASC8zMzMzC0BfYmZmZmYKQH6VmZmZmQlApsjMzMzMCEDZ+/////8HQBkvMzMzMwdAaWJmZmZmBkDLlZmZmZkFQETJzMzMzARA1/z/////A0CIMDMzMzMDQF1kZmZmZgJAWpiZmZmZAUCGzMzMzMwAQOgAAAAAAABADmtmZmZm/j/Y1MzMzMz8P0A/MzMzM/s/WqqZmZmZ+T8/FgAAAAD4PweDZmZmZvY/zvDMzMzM9D+zXzMzMzPzP9jPmZmZmfE/YUEAAAAA8D/raM3MzMzsP4RSmpmZmek/6z9nZmZm5j+GMTQzMzPjP8UnAQAAAOA/QEacmZmZ2T8uSDYzMzPTP9KsoJmZmck/bMipmZmZuT8BAADoEPhjPQ==\",\"dtype\":\"float64\",\"shape\":[101]},\"x\":[0,100,200,300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,1600,1700,1800,1900,2000,2100,2200,2300,2400,2500,2600,2700,2800,2900,3000,3100,3200,3300,3400,3500,3600,3700,3800,3900,4000,4100,4200,4300,4400,4500,4600,4700,4800,4900,5000,5100,5200,5300,5400,5500,5600,5700,5800,5900,6000,6100,6200,6300,6400,6500,6600,6700,6800,6900,7000,7100,7200,7300,7400,7500,7600,7700,7800,7900,8000,8100,8200,8300,8400,8500,8600,8700,8800,8900,9000,9100,9200,9300,9400,9500,9600,9700,9800,9900,10000]}},{\"attr\":\"text\",\"kind\":\"ModelChanged\",\"model\":{\"id\":\"6660\",\"type\":\"Title\"},\"new\":\"t: 4800\"}],\"references\":[]},\"root\":\"6659\"}"};
+  var dim_vals = ['0.0'];
+  var keyMap = {"('0.0',)": 0, "('600.0',)": 1, "('1200.0',)": 2, "('1800.0',)": 3, "('2400.0',)": 4, "('3000.0',)": 5, "('3600.0',)": 6, "('4200.0',)": 7, "('4800.0',)": 8};
+  var notFound = "<h2 style='vertical-align: middle>No frame at selected dimension value.<h2>";
+
+  var anim = new HoloViews.BokehSelectionWidget(frame_data, "e17bb91983e74169ae9b7eeda5d8a0cb", widget_ids,
+  keyMap, dim_vals, notFound, false, "default",
+  true, "", false, "6659");
+
+  HoloViews.index['6659'] = anim;
+}
+
+
+
+
+HoloViews.init_slider('e17bb91983e74169ae9b7eeda5d8a0cb', '6659', 't', ['0.0', '600.0', '1200.0', '1800.0', '2400.0', '3000.0', '3600.0', '4200.0', '4800.0'], {}, ['0', '600', '1200', '1800', '2400', '3000', '3600', '4200', '4800'], false, 1, 0, 'None', 0, 200, 'https://code.jquery.com/ui/1.10.4/jquery-ui.min.js', 'https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.3/underscore-min.js')
+
+
+
+
+create_widget();
+(function(root) {
+  function embed_document(root) {
+    
+  var docs_json = {"0cb037db-eca3-4d0e-8b5a-4c010e034332":{"roots":{"references":[{"attributes":{"align":null,"below":[{"id":"6668","type":"LinearAxis"}],"center":[{"id":"6672","type":"Grid"},{"id":"6677","type":"Grid"},{"id":"6708","type":"Legend"}],"left":[{"id":"6673","type":"LinearAxis"}],"margin":null,"min_border_bottom":10,"min_border_left":10,"min_border_right":10,"min_border_top":10,"plot_height":300,"plot_width":500,"renderers":[{"id":"6700","type":"GlyphRenderer"},{"id":"6716","type":"GlyphRenderer"},{"id":"6803","type":"GlyphRenderer"},{"id":"6822","type":"GlyphRenderer"}],"sizing_mode":"fixed","title":{"id":"6660","type":"Title"},"toolbar":{"id":"6683","type":"Toolbar"},"x_range":{"id":"6653","type":"Range1d"},"x_scale":{"id":"6664","type":"LinearScale"},"y_range":{"id":"6654","type":"Range1d"},"y_scale":{"id":"6666","type":"LinearScale"}},"id":"6659","subtype":"Figure","type":"Plot"},{"attributes":{},"id":"6691","type":"BasicTickFormatter"},{"attributes":{"text":"t: 0","text_color":{"value":"black"},"text_font_size":{"value":"12pt"}},"id":"6660","type":"Title"},{"attributes":{"source":{"id":"6816","type":"ColumnDataSource"}},"id":"6823","type":"CDSView"},{"attributes":{"line_alpha":0.2,"line_color":"#d62628","line_width":2,"x":{"field":"x"},"y":{"field":"value"}},"id":"6821","type":"Line"},{"attributes":{"callback":null,"data":{"Variable":["H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H"],"value":{"__ndarray__":"ZmZmZmZmP0BmZmZmZuY+QGZmZmZmZj5AZmZmZmbmPUBmZmZmZmY9QGZmZmZm5jxAZmZmZmZmPEBmZmZmZuY7QGZmZmZmZjtAZmZmZmbmOkBmZmZmZmY6QGZmZmZm5jlAZmZmZmZmOUBmZmZmZuY4QGZmZmZmZjhAZmZmZmbmN0BmZmZmZmY3QGZmZmZm5jZAZmZmZmZmNkBmZmZmZuY1QGZmZmZmZjVAZmZmZmbmNEBmZmZmZmY0QGZmZmZm5jNAZmZmZmZmM0BmZmZmZuYyQGdmZmZmZjJAamZmZmbmMUB1ZmZmZmYxQKBmZmZm5jBAQmdmZmZmMEBH08zMzMwvQDjlzMzMzC5A2yjNzMzMLUDGJ87MzMwsQJ3o0czMzCtAJg7gzMzMKkBEYBXNzMwpQJZZ3s3MzChAvNnT0MzMJ0Bq+/rbzMwmQBBiBAbNzCVANnt1pM3MJEAaE6P5z8wjQCuHT8TYzCJA4SDi5PnMIUC0mjqdds0gQJoep2mVnh9AMsoWlSasHUBYsqobc9wbQAmyzFNccxpA+/x6sGbKGUBNrXe3GK8ZQLOKAI1ZSBlAbyc4zPPhGEAN4i1kjXsYQM4BUv0mFRhAXEtllsCuF0DXrmgvWkgXQEamWsjz4RZA1ZU5YY17FkD0xgP6JhUWQBdot5LArhVA14xSK1pIFUBULtPD8+EUQBEsN1yNexRASE189CYVFEDaQqCMwK4TQOOpoCRaSBNAJw97vPPhEkBm8yxUjXsSQL3Qs+smFRJARyENg8CuEUAmZzYaWkgRQB02LbHz4RBAAT/vR417EEBEXXreJhUQQH5NmemAXQ9AafzIFbSQDkBvUYFB58MNQN3MwGwa9wxACx6Hl00qDECcZNXBgF0LQPN6ruuzkApA6koXFefDCUD3LRc+GvcIQPtZuGZNKghA51sIj4BdB0DgoRi3s5AGQDsW/97mwwVAGs3WBhr3BEBSxsAuTSoEQLfF5FaAXQNAiUNyf7OQAkB8d6Go5sMBQGGAtNIZ9wBAEKv4/UwqAEDntY9VALv+P/ItFLNmIf0/TntuFc2H+z86lmV9M+75Pw==","dtype":"float64","shape":[101]},"x":[0,100,200,300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,1600,1700,1800,1900,2000,2100,2200,2300,2400,2500,2600,2700,2800,2900,3000,3100,3200,3300,3400,3500,3600,3700,3800,3900,4000,4100,4200,4300,4400,4500,4600,4700,4800,4900,5000,5100,5200,5300,5400,5500,5600,5700,5800,5900,6000,6100,6200,6300,6400,6500,6600,6700,6800,6900,7000,7100,7200,7300,7400,7500,7600,7700,7800,7900,8000,8100,8200,8300,8400,8500,8600,8700,8800,8900,9000,9100,9200,9300,9400,9500,9600,9700,9800,9900,10000]},"selected":{"id":"6695","type":"Selection"},"selection_policy":{"id":"6725","type":"UnionRenderers"}},"id":"6694","type":"ColumnDataSource"},{"attributes":{"line_alpha":0.1,"line_color":"#1f77b3","line_width":2,"x":{"field":"x"},"y":{"field":"value"}},"id":"6698","type":"Line"},{"attributes":{},"id":"6798","type":"Selection"},{"attributes":{"line_color":"#d62628","line_width":2,"x":{"field":"x"},"y":{"field":"value"}},"id":"6819","type":"Line"},{"attributes":{"line_color":"#ff7e0e","line_width":2,"x":{"field":"x"},"y":{"field":"value"}},"id":"6713","type":"Line"},{"attributes":{},"id":"6664","type":"LinearScale"},{"attributes":{"label":{"value":"H"},"renderers":[{"id":"6700","type":"GlyphRenderer"}]},"id":"6709","type":"LegendItem"},{"attributes":{"label":{"value":"zb"},"renderers":[{"id":"6716","type":"GlyphRenderer"}]},"id":"6726","type":"LegendItem"},{"attributes":{},"id":"6666","type":"LinearScale"},{"attributes":{"callback":null,"data":{"Variable":["zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini","zb_ini"],"value":{"__ndarray__":"ZmZmZmZmPkBmZmZmZuY9QGZmZmZmZj1AZmZmZmbmPEBmZmZmZmY8QGZmZmZm5jtAZmZmZmZmO0BmZmZmZuY6QGZmZmZmZjpAZmZmZmbmOUBmZmZmZmY5QGZmZmZm5jhAZmZmZmZmOEBmZmZmZuY3QGZmZmZmZjdAZmZmZmbmNkBmZmZmZmY2QGZmZmZm5jVAZmZmZmZmNUBmZmZmZuY0QGZmZmZmZjRAZmZmZmbmM0BmZmZmZmYzQGZmZmZm5jJAZmZmZmZmMkBmZmZmZuYxQGZmZmZmZjFAZmZmZmbmMEBmZmZmZmYwQMzMzMzMzC9AzMzMzMzMLkDOzMzMzMwtQNLMzMzMzCxA5MzMzMzMK0AlzczMzMwqQBzOzMzMzClAvtHMzMzMKEBx38zMzMwnQBETzczMzCZAptXNzMzMJUAOs9DMzMwkQFx/28zMzCNAJDIEzczMIkDrk53NzMwhQGN338/MzCBATq28sJmZH0Cn2WrwmZkdQM77YduamRtAIrWQDZ6ZGUAte4oap5kXQFYmsu+zmRVAlfbdvK+ZE0CXGl1GNTMTQM5ss8rMzBJA4V1qZmZmEkBt9/////8RQICYmZmZmRFA9jEzMzMzEUB7y8zMzMwQQP9kZmZmZhBABf3/////D0AMMDMzMzMPQBRjZmZmZg5AHJaZmZmZDUAnyczMzMwMQDX8/////wtASC8zMzMzC0BfYmZmZmYKQH6VmZmZmQlApsjMzMzMCEDZ+/////8HQBkvMzMzMwdAaWJmZmZmBkDLlZmZmZkFQETJzMzMzARA1/z/////A0CIMDMzMzMDQF1kZmZmZgJAWpiZmZmZAUCGzMzMzMwAQOgAAAAAAABADmtmZmZm/j/Y1MzMzMz8P0A/MzMzM/s/WqqZmZmZ+T8/FgAAAAD4PweDZmZmZvY/zvDMzMzM9D+zXzMzMzPzP9jPmZmZmfE/YUEAAAAA8D/raM3MzMzsP4RSmpmZmek/6z9nZmZm5j+GMTQzMzPjP8UnAQAAAOA/QEacmZmZ2T8uSDYzMzPTP9KsoJmZmck/bMipmZmZuT8BAADoEPhjPQ==","dtype":"float64","shape":[101]},"x":[0,100,200,300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,1600,1700,1800,1900,2000,2100,2200,2300,2400,2500,2600,2700,2800,2900,3000,3100,3200,3300,3400,3500,3600,3700,3800,3900,4000,4100,4200,4300,4400,4500,4600,4700,4800,4900,5000,5100,5200,5300,5400,5500,5600,5700,5800,5900,6000,6100,6200,6300,6400,6500,6600,6700,6800,6900,7000,7100,7200,7300,7400,7500,7600,7700,7800,7900,8000,8100,8200,8300,8400,8500,8600,8700,8800,8900,9000,9100,9200,9300,9400,9500,9600,9700,9800,9900,10000]},"selected":{"id":"6817","type":"Selection"},"selection_policy":{"id":"6850","type":"UnionRenderers"}},"id":"6816","type":"ColumnDataSource"},{"attributes":{},"id":"6725","type":"UnionRenderers"},{"attributes":{"axis_label":"x","bounds":"auto","formatter":{"id":"6691","type":"BasicTickFormatter"},"major_label_orientation":"horizontal","ticker":{"id":"6669","type":"BasicTicker"}},"id":"6668","type":"LinearAxis"},{"attributes":{"callback":null,"renderers":[{"id":"6700","type":"GlyphRenderer"},{"id":"6716","type":"GlyphRenderer"},{"id":"6803","type":"GlyphRenderer"},{"id":"6822","type":"GlyphRenderer"}],"tags":["hv_created"],"tooltips":[["Variable","@{Variable}"],["x","@{x}"],["value","@{value}"]]},"id":"6655","type":"HoverTool"},{"attributes":{"label":{"value":"H_ini"},"renderers":[{"id":"6803","type":"GlyphRenderer"}]},"id":"6815","type":"LegendItem"},{"attributes":{},"id":"6669","type":"BasicTicker"},{"attributes":{"source":{"id":"6797","type":"ColumnDataSource"}},"id":"6804","type":"CDSView"},{"attributes":{"callback":null,"end":10000.0,"reset_end":10000.0,"reset_start":0.0,"tags":[[["x","x",null]]]},"id":"6653","type":"Range1d"},{"attributes":{"grid_line_color":null,"ticker":{"id":"6669","type":"BasicTicker"}},"id":"6672","type":"Grid"},{"attributes":{"callback":null,"end":31.4,"reset_end":31.4,"reset_start":5.675533421055716e-13,"start":5.675533421055716e-13,"tags":[[["value","value",null]]]},"id":"6654","type":"Range1d"},{"attributes":{"click_policy":"mute","items":[{"id":"6709","type":"LegendItem"},{"id":"6726","type":"LegendItem"},{"id":"6815","type":"LegendItem"},{"id":"6836","type":"LegendItem"}]},"id":"6708","type":"Legend"},{"attributes":{"axis_label":"","bounds":"auto","formatter":{"id":"6693","type":"BasicTickFormatter"},"major_label_orientation":"horizontal","ticker":{"id":"6674","type":"BasicTicker"}},"id":"6673","type":"LinearAxis"},{"attributes":{"data_source":{"id":"6710","type":"ColumnDataSource"},"glyph":{"id":"6713","type":"Line"},"hover_glyph":null,"muted_glyph":{"id":"6715","type":"Line"},"nonselection_glyph":{"id":"6714","type":"Line"},"selection_glyph":null,"view":{"id":"6717","type":"CDSView"}},"id":"6716","type":"GlyphRenderer"},{"attributes":{"line_alpha":0.2,"line_color":"#2ba02b","line_width":2,"x":{"field":"x"},"y":{"field":"value"}},"id":"6802","type":"Line"},{"attributes":{},"id":"6674","type":"BasicTicker"},{"attributes":{"data_source":{"id":"6797","type":"ColumnDataSource"},"glyph":{"id":"6800","type":"Line"},"hover_glyph":null,"muted_glyph":{"id":"6802","type":"Line"},"nonselection_glyph":{"id":"6801","type":"Line"},"selection_glyph":null,"view":{"id":"6804","type":"CDSView"}},"id":"6803","type":"GlyphRenderer"},{"attributes":{},"id":"6711","type":"Selection"},{"attributes":{"line_color":"#1f77b3","line_width":2,"x":{"field":"x"},"y":{"field":"value"}},"id":"6697","type":"Line"},{"attributes":{"source":{"id":"6710","type":"ColumnDataSource"}},"id":"6717","type":"CDSView"},{"attributes":{"bottom_units":"screen","fill_alpha":{"value":0.5},"fill_color":{"value":"lightgrey"},"left_units":"screen","level":"overlay","line_alpha":{"value":1.0},"line_color":{"value":"black"},"line_dash":[4,4],"line_width":{"value":2},"render_mode":"css","right_units":"screen","top_units":"screen"},"id":"6707","type":"BoxAnnotation"},{"attributes":{"dimension":1,"grid_line_color":null,"ticker":{"id":"6674","type":"BasicTicker"}},"id":"6677","type":"Grid"},{"attributes":{},"id":"6693","type":"BasicTickFormatter"},{"attributes":{},"id":"6850","type":"UnionRenderers"},{"attributes":{"label":{"value":"zb_ini"},"renderers":[{"id":"6822","type":"GlyphRenderer"}]},"id":"6836","type":"LegendItem"},{"attributes":{},"id":"6817","type":"Selection"},{"attributes":{"line_alpha":0.2,"line_color":"#ff7e0e","line_width":2,"x":{"field":"x"},"y":{"field":"value"}},"id":"6715","type":"Line"},{"attributes":{},"id":"6736","type":"UnionRenderers"},{"attributes":{"callback":null,"data":{"Variable":["zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb","zb"],"value":{"__ndarray__":"ZmZmZmZmPkBmZmZmZuY9QGZmZmZmZj1AZmZmZmbmPEBmZmZmZmY8QGZmZmZm5jtAZmZmZmZmO0BmZmZmZuY6QGZmZmZmZjpAZmZmZmbmOUBmZmZmZmY5QGZmZmZm5jhAZmZmZmZmOEBmZmZmZuY3QGZmZmZmZjdAZmZmZmbmNkBmZmZmZmY2QGZmZmZm5jVAZmZmZmZmNUBmZmZmZuY0QGZmZmZmZjRAZmZmZmbmM0BmZmZmZmYzQGZmZmZm5jJAZmZmZmZmMkBmZmZmZuYxQGZmZmZmZjFAZmZmZmbmMEBmZmZmZmYwQMzMzMzMzC9AzMzMzMzMLkDOzMzMzMwtQNLMzMzMzCxA5MzMzMzMK0AlzczMzMwqQBzOzMzMzClAvtHMzMzMKEBx38zMzMwnQBETzczMzCZAptXNzMzMJUAOs9DMzMwkQFx/28zMzCNAJDIEzczMIkDrk53NzMwhQGN338/MzCBATq28sJmZH0Cn2WrwmZkdQM77YduamRtAIrWQDZ6ZGUAte4oap5kXQFYmsu+zmRVAlfbdvK+ZE0CXGl1GNTMTQM5ss8rMzBJA4V1qZmZmEkBt9/////8RQICYmZmZmRFA9jEzMzMzEUB7y8zMzMwQQP9kZmZmZhBABf3/////D0AMMDMzMzMPQBRjZmZmZg5AHJaZmZmZDUAnyczMzMwMQDX8/////wtASC8zMzMzC0BfYmZmZmYKQH6VmZmZmQlApsjMzMzMCEDZ+/////8HQBkvMzMzMwdAaWJmZmZmBkDLlZmZmZkFQETJzMzMzARA1/z/////A0CIMDMzMzMDQF1kZmZmZgJAWpiZmZmZAUCGzMzMzMwAQOgAAAAAAABADmtmZmZm/j/Y1MzMzMz8P0A/MzMzM/s/WqqZmZmZ+T8/FgAAAAD4PweDZmZmZvY/zvDMzMzM9D+zXzMzMzPzP9jPmZmZmfE/YUEAAAAA8D/raM3MzMzsP4RSmpmZmek/6z9nZmZm5j+GMTQzMzPjP8UnAQAAAOA/QEacmZmZ2T8uSDYzMzPTP9KsoJmZmck/bMipmZmZuT8BAADoEPhjPQ==","dtype":"float64","shape":[101]},"x":[0,100,200,300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,1600,1700,1800,1900,2000,2100,2200,2300,2400,2500,2600,2700,2800,2900,3000,3100,3200,3300,3400,3500,3600,3700,3800,3900,4000,4100,4200,4300,4400,4500,4600,4700,4800,4900,5000,5100,5200,5300,5400,5500,5600,5700,5800,5900,6000,6100,6200,6300,6400,6500,6600,6700,6800,6900,7000,7100,7200,7300,7400,7500,7600,7700,7800,7900,8000,8100,8200,8300,8400,8500,8600,8700,8800,8900,9000,9100,9200,9300,9400,9500,9600,9700,9800,9900,10000]},"selected":{"id":"6711","type":"Selection"},"selection_policy":{"id":"6736","type":"UnionRenderers"}},"id":"6710","type":"ColumnDataSource"},{"attributes":{"active_drag":"auto","active_inspect":"auto","active_multi":null,"active_scroll":"auto","active_tap":"auto","tools":[{"id":"6655","type":"HoverTool"},{"id":"6678","type":"SaveTool"},{"id":"6679","type":"PanTool"},{"id":"6680","type":"WheelZoomTool"},{"id":"6681","type":"BoxZoomTool"},{"id":"6682","type":"ResetTool"}]},"id":"6683","type":"Toolbar"},{"attributes":{"line_alpha":0.1,"line_color":"#d62628","line_width":2,"x":{"field":"x"},"y":{"field":"value"}},"id":"6820","type":"Line"},{"attributes":{},"id":"6678","type":"SaveTool"},{"attributes":{},"id":"6835","type":"UnionRenderers"},{"attributes":{"line_alpha":0.2,"line_color":"#1f77b3","line_width":2,"x":{"field":"x"},"y":{"field":"value"}},"id":"6699","type":"Line"},{"attributes":{},"id":"6679","type":"PanTool"},{"attributes":{"source":{"id":"6694","type":"ColumnDataSource"}},"id":"6701","type":"CDSView"},{"attributes":{"line_color":"#2ba02b","line_width":2,"x":{"field":"x"},"y":{"field":"value"}},"id":"6800","type":"Line"},{"attributes":{"callback":null,"data":{"Variable":["H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini","H_ini"],"value":{"__ndarray__":"ZmZmZmZmP0BmZmZmZuY+QGZmZmZmZj5AZmZmZmbmPUBmZmZmZmY9QGZmZmZm5jxAZmZmZmZmPEBmZmZmZuY7QGZmZmZmZjtAZmZmZmbmOkBmZmZmZmY6QGZmZmZm5jlAZmZmZmZmOUBmZmZmZuY4QGZmZmZmZjhAZmZmZmbmN0BmZmZmZmY3QGZmZmZm5jZAZmZmZmZmNkBmZmZmZuY1QGZmZmZmZjVAZmZmZmbmNEBmZmZmZmY0QGZmZmZm5jNAZmZmZmZmM0BmZmZmZuYyQGdmZmZmZjJAamZmZmbmMUB1ZmZmZmYxQKBmZmZm5jBAQmdmZmZmMEBH08zMzMwvQDjlzMzMzC5A2yjNzMzMLUDGJ87MzMwsQJ3o0czMzCtAJg7gzMzMKkBEYBXNzMwpQJZZ3s3MzChAvNnT0MzMJ0Bq+/rbzMwmQBBiBAbNzCVANnt1pM3MJEAaE6P5z8wjQCuHT8TYzCJA4SDi5PnMIUC0mjqdds0gQJoep2mVnh9AMsoWlSasHUBYsqobc9wbQAmyzFNccxpA+/x6sGbKGUBNrXe3GK8ZQLOKAI1ZSBlAbyc4zPPhGEAN4i1kjXsYQM4BUv0mFRhAXEtllsCuF0DXrmgvWkgXQEamWsjz4RZA1ZU5YY17FkD0xgP6JhUWQBdot5LArhVA14xSK1pIFUBULtPD8+EUQBEsN1yNexRASE189CYVFEDaQqCMwK4TQOOpoCRaSBNAJw97vPPhEkBm8yxUjXsSQL3Qs+smFRJARyENg8CuEUAmZzYaWkgRQB02LbHz4RBAAT/vR417EEBEXXreJhUQQH5NmemAXQ9AafzIFbSQDkBvUYFB58MNQN3MwGwa9wxACx6Hl00qDECcZNXBgF0LQPN6ruuzkApA6koXFefDCUD3LRc+GvcIQPtZuGZNKghA51sIj4BdB0DgoRi3s5AGQDsW/97mwwVAGs3WBhr3BEBSxsAuTSoEQLfF5FaAXQNAiUNyf7OQAkB8d6Go5sMBQGGAtNIZ9wBAEKv4/UwqAEDntY9VALv+P/ItFLNmIf0/TntuFc2H+z86lmV9M+75Pw==","dtype":"float64","shape":[101]},"x":[0,100,200,300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,1600,1700,1800,1900,2000,2100,2200,2300,2400,2500,2600,2700,2800,2900,3000,3100,3200,3300,3400,3500,3600,3700,3800,3900,4000,4100,4200,4300,4400,4500,4600,4700,4800,4900,5000,5100,5200,5300,5400,5500,5600,5700,5800,5900,6000,6100,6200,6300,6400,6500,6600,6700,6800,6900,7000,7100,7200,7300,7400,7500,7600,7700,7800,7900,8000,8100,8200,8300,8400,8500,8600,8700,8800,8900,9000,9100,9200,9300,9400,9500,9600,9700,9800,9900,10000]},"selected":{"id":"6798","type":"Selection"},"selection_policy":{"id":"6835","type":"UnionRenderers"}},"id":"6797","type":"ColumnDataSource"},{"attributes":{},"id":"6695","type":"Selection"},{"attributes":{"line_alpha":0.1,"line_color":"#ff7e0e","line_width":2,"x":{"field":"x"},"y":{"field":"value"}},"id":"6714","type":"Line"},{"attributes":{"data_source":{"id":"6816","type":"ColumnDataSource"},"glyph":{"id":"6819","type":"Line"},"hover_glyph":null,"muted_glyph":{"id":"6821","type":"Line"},"nonselection_glyph":{"id":"6820","type":"Line"},"selection_glyph":null,"view":{"id":"6823","type":"CDSView"}},"id":"6822","type":"GlyphRenderer"},{"attributes":{},"id":"6680","type":"WheelZoomTool"},{"attributes":{"line_alpha":0.1,"line_color":"#2ba02b","line_width":2,"x":{"field":"x"},"y":{"field":"value"}},"id":"6801","type":"Line"},{"attributes":{"overlay":{"id":"6707","type":"BoxAnnotation"}},"id":"6681","type":"BoxZoomTool"},{"attributes":{"data_source":{"id":"6694","type":"ColumnDataSource"},"glyph":{"id":"6697","type":"Line"},"hover_glyph":null,"muted_glyph":{"id":"6699","type":"Line"},"nonselection_glyph":{"id":"6698","type":"Line"},"selection_glyph":null,"view":{"id":"6701","type":"CDSView"}},"id":"6700","type":"GlyphRenderer"},{"attributes":{},"id":"6682","type":"ResetTool"}],"root_ids":["6659"]},"title":"Bokeh Application","version":"1.4.0"}};
+  var render_items = [{"docid":"0cb037db-eca3-4d0e-8b5a-4c010e034332","roots":{"6659":"620b3dcc-9f89-441e-839a-fb9137a7c282"}}];
+  root.Bokeh.embed.embed_items_notebook(docs_json, render_items);
+
+  }
+  if (root.Bokeh !== undefined) {
+    embed_document(root);
+  } else {
+    var attempts = 0;
+    var timer = setInterval(function(root) {
+      if (root.Bokeh !== undefined) {
+        clearInterval(timer);
+        embed_document(root);
+      } else {
+        attempts++;
+        if (attempts > 100) {
+          clearInterval(timer);
+          console.log("Bokeh: ERROR: Unable to run BokehJS code because BokehJS library is missing");
+        }
+      }
+    }, 10, root)
+  }
+})(window);</script>
+  </body>
+</html>
